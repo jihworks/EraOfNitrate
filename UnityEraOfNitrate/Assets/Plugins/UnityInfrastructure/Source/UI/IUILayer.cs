@@ -12,7 +12,7 @@ using UnityEngine;
 namespace Jih.Unity.Infrastructure.UI
 {
     /// <seealso cref="UILayerStack"/>
-    /// <seealso cref="UILayerBaseScript"/>
+    /// <seealso cref="BaseUILayerScript"/>
     public interface IUILayer
     {
         static readonly ListPool<Component> _componentsListPool = new(isThreadSafe: true);

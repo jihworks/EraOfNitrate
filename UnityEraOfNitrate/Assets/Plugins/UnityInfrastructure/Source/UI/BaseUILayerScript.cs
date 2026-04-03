@@ -16,7 +16,7 @@ namespace Jih.Unity.Infrastructure.UI
     /// </remarks>
     /// <seealso cref="UILayerStack"/>
     [RequireComponent(typeof(CanvasGroup))]
-    public abstract class UILayerBaseScript : MonoBehaviour, IUILayer
+    public abstract class BaseUILayerScript : MonoBehaviour, IUILayer
     {
         /// <summary>
         /// Whether this layer is active. It will be set by <see cref="UILayerStack"/>.

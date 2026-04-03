@@ -9,7 +9,7 @@ using System.Collections.Generic;
 
 namespace Jih.Unity.Infrastructure.Runtime
 {
-    public class ListPool<T> : ObjectPoolBase<List<T>>
+    public class ListPool<T> : BaseObjectPool<List<T>>
     {
         public int ListCapacity { get; set; }
 
@@ -36,7 +36,7 @@ namespace Jih.Unity.Infrastructure.Runtime
         }
     }
 
-    public class DictionaryPool<TKey, TValue> : ObjectPoolBase<Dictionary<TKey, TValue>>
+    public class DictionaryPool<TKey, TValue> : BaseObjectPool<Dictionary<TKey, TValue>>
     {
         public int DictionaryCapacity { get; set; }
 
@@ -63,7 +63,7 @@ namespace Jih.Unity.Infrastructure.Runtime
         }
     }
 
-    public class HashSetPool<T> : ObjectPoolBase<HashSet<T>>
+    public class HashSetPool<T> : BaseObjectPool<HashSet<T>>
     {
         public int HashSetCapacity { get; set; }
 

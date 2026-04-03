@@ -15,7 +15,7 @@ namespace Jih.Unity.Infrastructure.Runtime
     /// Duplication check is based on a HashSet with <see cref="ReferenceEqualityComparer{T}"/>.<br/>
     /// Therefore, there is no effect even though <typeparamref name="T"/> overrides <see cref="object.GetHashCode"/> or <see cref="object.Equals(object?)"/>.
     /// </remarks>
-    public abstract class ObjectPoolBase<T> where T : class
+    public abstract class BaseObjectPool<T> where T : class
     {
         protected const int DefaultInitialCollectionCapacity = 8;
         protected const int DefaultInitialPoolCapacity = 0;
@@ -35,7 +35,7 @@ namespace Jih.Unity.Infrastructure.Runtime
         /// <param name="initialCollectionCapacity">Initial internal management collections capacity.</param>
         /// <param name="initialPoolCapacity">Initial pool object count.</param>
         /// <param name="isThreadSafe">Whether thread-safe or not. If <c>true</c>, will use <c>lock</c> to achieve thread-safe. Pass <c>false</c> to gain performance if thread-safe is not essential.</param>
-        protected ObjectPoolBase(int initialCollectionCapacity, int initialPoolCapacity, bool isThreadSafe)
+        protected BaseObjectPool(int initialCollectionCapacity, int initialPoolCapacity, bool isThreadSafe)
         {
             if (isThreadSafe)
             {

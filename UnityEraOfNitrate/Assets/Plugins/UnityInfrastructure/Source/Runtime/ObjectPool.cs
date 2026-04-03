@@ -8,10 +8,10 @@
 namespace Jih.Unity.Infrastructure.Runtime
 {
     /// <summary>
-    /// Simplest version of <see cref="ObjectPoolBase{T}"/>.<br/>
+    /// Simplest version of <see cref="BaseObjectPool{T}"/>.<br/>
     /// It creates objects by parameterless constructor and does not handle activation and deactivation.
     /// </summary>
-    public class ObjectPool<T> : ObjectPoolBase<T> where T : class, new()
+    public class ObjectPool<T> : BaseObjectPool<T> where T : class, new()
     {
         public ObjectPool(int initialCollectionCapacity = DefaultInitialCollectionCapacity, int initialPoolCapacity = DefaultInitialPoolCapacity, bool isThreadSafe = DefaultIsThreadSafe)
             : base(initialCollectionCapacity, initialPoolCapacity, isThreadSafe)
