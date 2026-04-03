@@ -22,6 +22,10 @@ namespace Jih.Unity.Infrastructure.TileGrid
         public int Width { get; }
         public int Height { get; }
 
+        public TileCell this[TileCellCoord coord] => GetCell(coord) ?? throw new ArgumentOutOfRangeException(nameof(coord), $"Invalid cell coordinate: {coord}");
+        public TileVertex this[TileVertexCoord coord] => GetVertex(coord) ?? throw new ArgumentOutOfRangeException(nameof(coord), $"Invalid vertex coordinate: {coord}");
+        public TileEdge this[TileEdgeCoord coord] => GetEdge(coord) ?? throw new ArgumentOutOfRangeException(nameof(coord), $"Invalid edge coordinate: {coord}");
+
         readonly TileCell[,] _cells;
         readonly TileVertex[,] _vertices;
         readonly TileEdge[,] _horizontalEdges, _verticalEdges;
@@ -264,8 +268,7 @@ namespace Jih.Unity.Infrastructure.TileGrid
                     }
                     return null;
 
-                default:
-                    throw new ArgumentException($"Invalid edge orientation: {orientation}", nameof(orientation));
+                default: throw new ArgumentException($"Invalid edge orientation: {orientation}", nameof(orientation));
             }
         }
     }
