@@ -75,7 +75,7 @@ namespace Jih.Unity.Infrastructure.Collisions
         {
             if (targetDepth <= 0)
             {
-                throw new ArgumentException("Octree depth cannot be 0 or negative.");
+                throw new ArgumentException("Octree depth cannot be 0 or negative.", nameof(targetDepth));
             }
 
             OctreeRoot<T> root = _octreeRootPool.Get();
@@ -200,6 +200,99 @@ namespace Jih.Unity.Infrastructure.Collisions
                     }
                 }
             }
+        }
+
+        /// <returns>Whether the <paramref name="item"/> was found in any leaf octree.</returns>
+        public static bool ContainsItem(OctreeRoot<T> root, T item)
+        {
+            IReadOnlyList<Octree<T>> leaves = root.Leaves;
+
+            for (int l = 0; l < leaves.Count; l++)
+            {
+                Octree<T> leaf = leaves[l];
+
+                List<T> leafItems = leaf._items ?? throw new InvalidOperationException();
+
+                if (leafItems.Contains(item))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Try to add an item to the octree without updating bounds.
+        /// </summary>
+        /// <remarks>
+        /// This is useful for the case that the octree bounds already cover whole expecting space and spawning some items to search.<br/>
+        /// This method does <c>NOT</c> check duplication.
+        /// </remarks>
+        /// <returns>Whether the <paramref name="item"/> was successfully added to the octree.</returns>
+        public static bool TryAddItem(OctreeRoot<T> root, T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
+        {
+            IReadOnlyList<Octree<T>> leaves = root.Leaves;
+
+            for (int l = 0; l < leaves.Count; l++)
+            {
+                Octree<T> leaf = leaves[l];
+
+                if (!isItemBoundsIntersects(leaf.Bounds, item))
+                {
+                    continue;
+                }
+
+                List<T> leafItems = leaf._items ?? throw new InvalidOperationException();
+
+                leafItems.Add(item);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Remove an item from the octree without updating bounds.
+        /// </summary>
+        /// <remarks>
+        /// This method will search the item in whole octree and remove the first found one.
+        /// </remarks>
+        /// <returns>Whether the <paramref name="item"/> was found and removed.</returns>
+        public static bool RemoveItem(OctreeRoot<T> root, T item)
+        {
+            IReadOnlyList<Octree<T>> leaves = root.Leaves;
+
+            for (int l = 0; l < leaves.Count; l++)
+            {
+                Octree<T> leaf = leaves[l];
+
+                List<T> leafItems = leaf._items ?? throw new InvalidOperationException();
+
+                if (leafItems.Remove(item))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Remove items from the octree without updating bounds.
+        /// </summary>
+        /// <returns>Total sum of removed items count.</returns>
+        public static int RemoveAllItems(OctreeRoot<T> root, Predicate<T> match)
+        {
+            IReadOnlyList<Octree<T>> leaves = root.Leaves;
+
+            int count = 0;
+            for (int l = 0; l < leaves.Count; l++)
+            {
+                Octree<T> leaf = leaves[l];
+
+                List<T> leafItems = leaf._items ?? throw new InvalidOperationException();
+
+                count += leafItems.RemoveAll(match);
+            }
+            return count;
         }
 
         /// <summary>Search octree versus octree.</summary>
@@ -363,54 +456,47 @@ namespace Jih.Unity.Infrastructure.Collisions
 
             Vector3 min = source.min;
             Bounds bounds = default;
-            bounds.SetMinMax(min, min + halfSize);
-            bounds.Expand(epsilon);
+            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
             octrees[0].Bounds = bounds;
 
             min = source.min;
             min.x += halfSize.x;
             bounds = default;
-            bounds.SetMinMax(min, min + halfSize);
-            bounds.Expand(epsilon);
+            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
             octrees[1].Bounds = bounds;
 
             min = source.min;
             min.z += halfSize.z;
             bounds = default;
-            bounds.SetMinMax(min, min + halfSize);
-            bounds.Expand(epsilon);
+            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
             octrees[2].Bounds = bounds;
 
             min = source.min;
             min.x += halfSize.x;
             min.z += halfSize.z;
             bounds = default;
-            bounds.SetMinMax(min, min + halfSize);
-            bounds.Expand(epsilon);
+            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
             octrees[3].Bounds = bounds;
 
 
             min = source.min;
             min.y += halfSize.y;
             bounds = default;
-            bounds.SetMinMax(min, min + halfSize);
-            bounds.Expand(epsilon);
+            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
             octrees[4].Bounds = bounds;
 
             min = source.min;
             min.y += halfSize.y;
             min.x += halfSize.x;
             bounds = default;
-            bounds.SetMinMax(min, min + halfSize);
-            bounds.Expand(epsilon);
+            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
             octrees[5].Bounds = bounds;
 
             min = source.min;
             min.y += halfSize.y;
             min.z += halfSize.z;
             bounds = default;
-            bounds.SetMinMax(min, min + halfSize);
-            bounds.Expand(epsilon);
+            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
             octrees[6].Bounds = bounds;
 
             min = source.min;
@@ -418,8 +504,7 @@ namespace Jih.Unity.Infrastructure.Collisions
             min.x += halfSize.x;
             min.z += halfSize.z;
             bounds = default;
-            bounds.SetMinMax(min, min + halfSize);
-            bounds.Expand(epsilon);
+            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
             octrees[7].Bounds = bounds;
         }
 

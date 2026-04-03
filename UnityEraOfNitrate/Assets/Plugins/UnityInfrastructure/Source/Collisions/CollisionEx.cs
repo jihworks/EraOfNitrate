@@ -12,6 +12,7 @@ namespace Jih.Unity.Infrastructure.Collisions
     static class CollisionEx
     {
         public const float BoundsEpsilon = 0.001f;
+        public static Vector2 BoundsEpsilon2 => new(BoundsEpsilon, BoundsEpsilon);
         public static Vector3 BoundsEpsilon3 => new(BoundsEpsilon, BoundsEpsilon, BoundsEpsilon);
     }
 }
