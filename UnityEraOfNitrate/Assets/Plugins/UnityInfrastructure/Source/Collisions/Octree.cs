@@ -14,203 +14,111 @@ using UnityEngine;
 
 namespace Jih.Unity.Infrastructure.Collisions
 {
-    public class Octree<T>
+    public abstract class OctreeNode<T>
     {
         public Bounds Bounds { get; internal set; } = new(Vector3.zero, Vector3.zero);
-
-        internal List<Octree<T>>? ChildrenInternal { get; set; }
-        public bool IsLeaf => ChildrenInternal is null;
 
         /// <summary>
         /// Root is <c>0</c>, increases when go down the tree.
         /// </summary>
-        public int Depth { get; private set; }
+        public int Depth { get; internal set; }
 
-        internal List<T>? ItemsInternal { get; set; }
-        /// <remarks>
-        /// Not <c>null</c> when this octree is leaf AND had been updated.
-        /// </remarks>
-        /// <seealso cref="GetLeafItems"/>
-        public IReadOnlyList<T>? Items => ItemsInternal;
-
-        /// <exception cref="InvalidOperationException">When this octree is not a leaf <b>or</b> <see cref="Items"/> is <c>null</c> even though this octree is leaf because never updated.</exception>
-        public IReadOnlyList<T> GetLeafItems()
-        {
-            if (!IsLeaf)
-            {
-                throw new InvalidOperationException("This octree is not a leaf but getting items.");
-            }
-            if (ItemsInternal is null)
-            {
-                throw new InvalidOperationException("This octree is leaf but items list is null.");
-            }
-            return ItemsInternal;
-        }
-
-        protected virtual void Reset()
+        internal virtual void Reset()
         {
             Bounds = new Bounds(Vector3.zero, Vector3.zero);
             Depth = 0;
-
-            if (ItemsInternal is not null)
-            {
-                ItemsInternal.Clear();
-                _itemListPool.Release(ItemsInternal);
-                ItemsInternal = null;
-            }
-
-            if (ChildrenInternal is not null)
-            {
-                for (int i = 0; i < ChildrenInternal.Count; i++)
-                {
-                    ChildrenInternal[i].Reset();
-                }
-                ChildrenInternal.Clear();
-                _octreeListPool.Release(ChildrenInternal);
-                ChildrenInternal = null;
-            }
         }
+    }
 
-        public static OctreeRoot<T> Create(int targetDepth)
+    public class OctreeContainerNode<T> : OctreeNode<T>
+    {
+        internal List<OctreeNode<T>> ChildrenInternal { get; } = new();
+        public IReadOnlyList<OctreeNode<T>> Children => ChildrenInternal;
+
+        internal override void Reset()
+        {
+            for (int i = 0; i < ChildrenInternal.Count; i++)
+            {
+                ChildrenInternal[i].Reset();
+            }
+            ChildrenInternal.Clear();
+
+            base.Reset();
+        }
+    }
+
+    public sealed class OctreeLeafNode<T> : OctreeNode<T>
+    {
+        readonly List<T> _items = new();
+        public List<T> Items => _items;
+
+        internal override void Reset()
+        {
+            _items.Clear();
+
+            base.Reset();
+        }
+    }
+
+    public sealed class Octree<T> : OctreeContainerNode<T>
+    {
+        public static Octree<T> Create(int targetDepth)
         {
             if (targetDepth <= 0)
             {
                 throw new ArgumentException("Octree depth cannot be 0 or negative.", nameof(targetDepth));
             }
 
-            OctreeRoot<T> root = _octreeRootPool.Get();
-            Populate(root, 0, targetDepth);
-
-            root.UpdateLeaves();
+            Octree<T> root = _octreePool.Get();
+            root.Depth = 0;
+            Populate(root, root, 1, targetDepth);
             return root;
 
 
-            static void Populate(Octree<T> parent, int depth, int targetDepth)
+            static void Populate(Octree<T> root, OctreeContainerNode<T> parent, int currentDepth, int targetDepth)
             {
-                parent.Depth = depth;
-
-                if (depth == targetDepth)
+                if (currentDepth == targetDepth)
                 {
+                    for (int i = 0; i < 8; i++)
+                    {
+                        OctreeLeafNode<T> child = _octreeLeafPool.Get();
+                        child.Depth = currentDepth;
+                        parent.ChildrenInternal.Add(child);
+
+                        root.LeavesInternal.Add(child);
+                    }
                     return;
                 }
 
-                List<Octree<T>> children = _octreeListPool.Get();
-                parent.ChildrenInternal = children;
-
                 for (int i = 0; i < 8; i++)
                 {
-                    Octree<T> child = _octreePool.Get();
-                    children.Add(child);
+                    OctreeContainerNode<T> child = _octreeContainerPool.Get();
+                    child.Depth = currentDepth;
+                    parent.ChildrenInternal.Add(child);
 
-                    Populate(child, depth + 1, targetDepth);
+                    Populate(root, child, currentDepth + 1, targetDepth);
                 }
             }
         }
 
-        public static void Release(ref OctreeRoot<T>? root)
+        public static void Release(ref Octree<T>? root)
         {
             if (root is null)
             {
                 return;
             }
-            _octreeRootPool.Release(root);
+            _octreePool.Release(root);
             root = null;
         }
 
-        internal class OctreePool : ObjectPool<Octree<T>>
+        internal List<OctreeLeafNode<T>> LeavesInternal { get; } = new();
+        public IReadOnlyList<OctreeLeafNode<T>> Leaves => LeavesInternal;
+
+        internal override void Reset()
         {
-            public OctreePool() : base(isThreadSafe: true)
-            {
-            }
-
-            protected override void Activate(Octree<T> obj)
-            {
-                base.Activate(obj);
-                obj.Reset();
-            }
-
-            protected override void Deactivate(Octree<T> obj)
-            {
-                base.Deactivate(obj);
-                obj.Reset();
-            }
-        }
-
-        internal class OctreeRootPool : ObjectPool<OctreeRoot<T>>
-        {
-            public OctreeRootPool() : base(isThreadSafe: true)
-            {
-            }
-
-            protected override void Activate(OctreeRoot<T> obj)
-            {
-                base.Activate(obj);
-                obj.Reset();
-            }
-
-            protected override void Deactivate(OctreeRoot<T> obj)
-            {
-                base.Deactivate(obj);
-                obj.Reset();
-            }
-        }
-
-        /// <returns>Return <c>false</c> to abort.</returns>
-        public delegate bool OctreeSearchDelegate(Octree<T> leaf0, Octree<T> leaf1);
-        /// <returns>Return <c>true</c> if the <paramref name="item"/> is intersects with the <paramref name="octreeBounds"/>.</returns>
-        /// <remarks>
-        /// Shallow-test is enough for the result such as <see cref="Bounds.Intersects(Bounds)"/>.
-        /// </remarks>
-        public delegate bool IsItemBoundsIntersectsDelegate(Bounds octreeBounds, T item);
-        /// <returns>Return <c>false</c> to abort.</returns>
-        public delegate bool ItemSearchDelegate(T item, Octree<T> leaf);
-        /// <returns>Return <c>true</c> if something is intersects with the <paramref name="octreeBounds"/>.</returns>
-        public delegate bool IsBoundsIntersectsDelegate(Bounds octreeBounds);
-        /// <returns>Return <c>false</c> to abort.</returns>
-        public delegate bool SearchDelegate(Octree<T> leaf);
-
-        internal static readonly OctreePool _octreePool = new();
-        internal static readonly OctreeRootPool _octreeRootPool = new();
-        internal static readonly ListPool<Octree<T>> _octreeListPool = new(listCapacity: 8, isThreadSafe: true);
-        internal static readonly ListPool<T> _itemListPool = new(isThreadSafe: true);
-    }
-
-    public sealed class OctreeRoot<T> : Octree<T>
-    {
-        /// <summary>
-        /// If this octree is root, it has a list of leaf nodes.
-        /// </summary>
-        readonly List<Octree<T>> _leaves = new();
-        public IReadOnlyList<Octree<T>> Leaves => _leaves;
-
-        protected override void Reset()
-        {
-            _leaves.Clear();
+            LeavesInternal.Clear();
 
             base.Reset();
-        }
-
-        internal void UpdateLeaves()
-        {
-            _leaves.Clear();
-            Populate(this, _leaves);
-            return;
-
-
-            static void Populate(Octree<T> root, List<Octree<T>> buffer)
-            {
-                if (root.IsLeaf)
-                {
-                    buffer.Add(root);
-                }
-                if (root.ChildrenInternal is not null)
-                {
-                    for (int c = 0; c < root.ChildrenInternal.Count; c++)
-                    {
-                        Populate(root.ChildrenInternal[c], buffer);
-                    }
-                }
-            }
         }
 
         /// <param name="root">Octree to update.</param>
@@ -224,24 +132,17 @@ namespace Jih.Unity.Infrastructure.Collisions
         /// Throws when an item was not added to any octree.<br/>
         /// This may occur when the <paramref name="sourcesTotalBounds"/> does not contains all of <paramref name="itemSources"/>. Then, the item wasn't passed any <paramref name="isItemBoundsIntersects"/>.
         /// </exception>
-        public void Update(OctreeRoot<T> root, IReadOnlyList<T> itemSources, OrderablePartitioner<Tuple<int, int>>? sourcePartitioner, Bounds sourcesTotalBounds, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
+        public void Update(Octree<T> root, IReadOnlyList<T> itemSources, OrderablePartitioner<Tuple<int, int>>? sourcePartitioner, Bounds sourcesTotalBounds, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
         {
-            IReadOnlyList<Octree<T>> leaves = root.Leaves;
+            IReadOnlyList<OctreeLeafNode<T>> leaves = root.Leaves;
 
             UpdateBounds(root, sourcesTotalBounds);
 
             for (int i = 0; i < leaves.Count; i++)
             {
-                Octree<T> leaf = leaves[i];
+                OctreeLeafNode<T> leaf = leaves[i];
 
-                if (leaf.ItemsInternal is null)
-                {
-                    leaf.ItemsInternal = _itemListPool.Get();
-                }
-                else
-                {
-                    leaf.ItemsInternal.Clear();
-                }
+                leaf.Items.Clear();
             }
 
             if (sourcePartitioner is not null)
@@ -252,26 +153,7 @@ namespace Jih.Unity.Infrastructure.Collisions
                     {
                         T item = itemSources[i];
 
-                        bool anyAdded = false;
-                        for (int l = 0; l < leaves.Count; l++)
-                        {
-                            Octree<T> leaf = leaves[l];
-
-                            if (!isItemBoundsIntersects(leaf.Bounds, item))
-                            {
-                                continue;
-                            }
-
-                            List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
-
-                            lock (leafItems)
-                            {
-                                leafItems.Add(item);
-                            }
-                            anyAdded = true;
-                        }
-
-                        if (!anyAdded)
+                        if (!TryAddItemInternal(this, item, isItemBoundsIntersects, true))
                         {
                             throw new InvalidOperationException("An item was not added to any octree.");
                         }
@@ -284,47 +166,12 @@ namespace Jih.Unity.Infrastructure.Collisions
                 {
                     T item = itemSources[i];
 
-                    bool anyAdded = false;
-                    for (int l = 0; l < leaves.Count; l++)
-                    {
-                        Octree<T> leaf = leaves[l];
-
-                        if (!isItemBoundsIntersects(leaf.Bounds, item))
-                        {
-                            continue;
-                        }
-
-                        List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
-
-                        leafItems.Add(item);
-                        anyAdded = true;
-                    }
-
-                    if (!anyAdded)
+                    if (!TryAddItemInternal(this, item, isItemBoundsIntersects, false))
                     {
                         throw new InvalidOperationException("An item was not added to any octree.");
                     }
                 }
             }
-        }
-
-        /// <returns>Whether the <paramref name="item"/> was found in any leaf octree.</returns>
-        public bool ContainsItem(T item)
-        {
-            IReadOnlyList<Octree<T>> leaves = Leaves;
-
-            for (int l = 0; l < leaves.Count; l++)
-            {
-                Octree<T> leaf = leaves[l];
-
-                List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
-
-                if (leafItems.Contains(item))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         /// <summary>
@@ -337,48 +184,73 @@ namespace Jih.Unity.Infrastructure.Collisions
         /// <returns>Whether the <paramref name="item"/> was successfully added to the octree.</returns>
         public bool TryAddItem(T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
         {
-            IReadOnlyList<Octree<T>> leaves = Leaves;
+            return TryAddItemInternal(this, item, isItemBoundsIntersects, false);
+        }
 
-            for (int l = 0; l < leaves.Count; l++)
+        static bool TryAddItemInternal(Octree<T> root, T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects, bool useLock)
+        {
+            return Populate(root);
+
+
+            bool Populate(OctreeNode<T> self)
             {
-                Octree<T> leaf = leaves[l];
-
-                if (!isItemBoundsIntersects(leaf.Bounds, item))
+                if (!isItemBoundsIntersects(self.Bounds, item))
                 {
-                    continue;
+                    return false;
                 }
 
-                List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
+                if (self is OctreeLeafNode<T> selfLeaf)
+                {
+                    List<T> leafItems = selfLeaf.Items;
+                    if (useLock)
+                    {
+                        lock (leafItems)
+                        {
+                            leafItems.Add(item);
+                        }
+                    }
+                    else
+                    {
+                        leafItems.Add(item);
+                    }
+                    return true;
+                }
 
-                leafItems.Add(item);
-                return true;
+                if (self is OctreeContainerNode<T> selfContainer)
+                {
+                    IReadOnlyList<OctreeNode<T>> children = selfContainer.Children;
+
+                    bool addedToAny = false;
+                    for (int c = 0; c < children.Count; c++)
+                    {
+                        addedToAny |= Populate(children[c]);
+                    }
+                    return addedToAny;
+                }
+
+                return false;
             }
-            return false;
         }
 
         /// <summary>
         /// Remove an item from the octree without updating bounds.
         /// </summary>
         /// <remarks>
-        /// This method will search the item in whole octree and remove the first found one.
+        /// This method will search the item in whole octree and remove it all.
         /// </remarks>
         /// <returns>Whether the <paramref name="item"/> was found and removed.</returns>
         public bool RemoveItem(T item)
         {
-            IReadOnlyList<Octree<T>> leaves = Leaves;
+            IReadOnlyList<OctreeLeafNode<T>> leaves = Leaves;
 
+            bool anyRemoved = false;
             for (int l = 0; l < leaves.Count; l++)
             {
-                Octree<T> leaf = leaves[l];
+                OctreeLeafNode<T> leaf = leaves[l];
 
-                List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
-
-                if (leafItems.Remove(item))
-                {
-                    return true;
-                }
+                anyRemoved |= leaf.Items.Remove(item);
             }
-            return false;
+            return anyRemoved;
         }
 
         /// <summary>
@@ -387,18 +259,37 @@ namespace Jih.Unity.Infrastructure.Collisions
         /// <returns>Total sum of removed items count.</returns>
         public int RemoveAllItems(Predicate<T> match)
         {
-            IReadOnlyList<Octree<T>> leaves = Leaves;
+            IReadOnlyList<OctreeLeafNode<T>> leaves = Leaves;
 
             int count = 0;
             for (int l = 0; l < leaves.Count; l++)
             {
-                Octree<T> leaf = leaves[l];
+                OctreeLeafNode<T> leaf = leaves[l];
 
-                List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
+                List<T> leafItems = leaf.Items;
 
                 count += leafItems.RemoveAll(match);
             }
             return count;
+        }
+
+        /// <returns>Whether the <paramref name="item"/> was found in any leaf octree.</returns>
+        public bool ContainsItem(T item)
+        {
+            IReadOnlyList<OctreeLeafNode<T>> leaves = Leaves;
+
+            for (int l = 0; l < leaves.Count; l++)
+            {
+                OctreeLeafNode<T> leaf = leaves[l];
+
+                List<T> leafItems = leaf.Items;
+
+                if (leafItems.Contains(item))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>Search octree versus octree.</summary>
@@ -406,9 +297,9 @@ namespace Jih.Unity.Infrastructure.Collisions
         /// Whether allowing swap <c>this</c> and <paramref name="other"/> to increase performance.<br/>
         /// If <c>true</c>, input arguments order for <paramref name="search"/> can be different with <c>this</c> after <paramref name="other"/> order.
         /// </param>
-        public void Search(OctreeRoot<T> other, bool allowSwap, OctreeSearchDelegate search)
+        public void Search(Octree<T> other, bool allowSwap, OctreeSearchDelegate search)
         {
-            OctreeRoot<T> searchRoot = this, searchOther = other;
+            Octree<T> searchRoot = this, searchOther = other;
             if (allowSwap &&
                 other.Leaves.Count > Leaves.Count)
             {
@@ -420,30 +311,30 @@ namespace Jih.Unity.Infrastructure.Collisions
 
             for (int i = 0; i < searchOther.Leaves.Count; i++)
             {
-                Octree<T> otherLeaf = searchOther.Leaves[i];
+                OctreeLeafNode<T> otherLeaf = searchOther.Leaves[i];
                 if (!PopulateSearch(searchRoot, otherLeaf, search))
                 {
                     return;
                 }
             }
         }
-        static bool PopulateSearch(Octree<T> root, Octree<T> otherLeaf, OctreeSearchDelegate search)
+        static bool PopulateSearch(OctreeNode<T> self, OctreeLeafNode<T> otherLeaf, OctreeSearchDelegate search)
         {
-            if (!root.Bounds.Intersects(otherLeaf.Bounds))
+            if (!self.Bounds.Intersects(otherLeaf.Bounds))
             {
                 return true;
             }
 
-            if (root.IsLeaf && !search(root, otherLeaf))
+            if (self is OctreeLeafNode<T> selfLeaf && !search(selfLeaf, otherLeaf))
             {
                 return false;
             }
 
-            if (root.ChildrenInternal is not null)
+            if (self is OctreeContainerNode<T> selfContainer)
             {
-                for (int c = 0; c < root.ChildrenInternal.Count; c++)
+                for (int c = 0; c < selfContainer.Children.Count; c++)
                 {
-                    Octree<T> child = root.ChildrenInternal[c];
+                    OctreeNode<T> child = selfContainer.Children[c];
                     if (!PopulateSearch(child, otherLeaf, search))
                     {
                         return false;
@@ -461,23 +352,23 @@ namespace Jih.Unity.Infrastructure.Collisions
         {
             PopulateSearch(this, item, isItemBoundsIntersects, search);
         }
-        static bool PopulateSearch(Octree<T> root, T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects, ItemSearchDelegate search)
+        static bool PopulateSearch(OctreeNode<T> self, T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects, ItemSearchDelegate search)
         {
-            if (!isItemBoundsIntersects(root.Bounds, item))
+            if (!isItemBoundsIntersects(self.Bounds, item))
             {
                 return true;
             }
 
-            if (root.IsLeaf && !search(item, root))
+            if (self is OctreeLeafNode<T> selfLeaf && !search(item, selfLeaf))
             {
                 return false;
             }
 
-            if (root.ChildrenInternal is not null)
+            if (self is OctreeContainerNode<T> selfContainer)
             {
-                for (int c = 0; c < root.ChildrenInternal.Count; c++)
+                for (int c = 0; c < selfContainer.Children.Count; c++)
                 {
-                    Octree<T> child = root.ChildrenInternal[c];
+                    OctreeNode<T> child = selfContainer.Children[c];
                     if (!PopulateSearch(child, item, isItemBoundsIntersects, search))
                     {
                         return false;
@@ -494,23 +385,23 @@ namespace Jih.Unity.Infrastructure.Collisions
         {
             PopulateSearch(this, isBoundsIntersects, search);
         }
-        static bool PopulateSearch(Octree<T> root, IsBoundsIntersectsDelegate isBoundsIntersects, SearchDelegate search)
+        static bool PopulateSearch(OctreeNode<T> self, IsBoundsIntersectsDelegate isBoundsIntersects, SearchDelegate search)
         {
-            if (!isBoundsIntersects(root.Bounds))
+            if (!isBoundsIntersects(self.Bounds))
             {
                 return true;
             }
 
-            if (root.IsLeaf && !search(root))
+            if (self is OctreeLeafNode<T> selfLeaf && !search(selfLeaf))
             {
                 return false;
             }
 
-            if (root.ChildrenInternal is not null)
+            if (self is OctreeContainerNode<T> selfContainer)
             {
-                for (int c = 0; c < root.ChildrenInternal.Count; c++)
+                for (int c = 0; c < selfContainer.Children.Count; c++)
                 {
-                    Octree<T> child = root.ChildrenInternal[c];
+                    OctreeNode<T> child = selfContainer.Children[c];
                     if (!PopulateSearch(child, isBoundsIntersects, search))
                     {
                         return false;
@@ -520,31 +411,31 @@ namespace Jih.Unity.Infrastructure.Collisions
             return true;
         }
 
-        static void UpdateBounds(Octree<T> root, Bounds source)
+        static void UpdateBounds(OctreeNode<T> root, Bounds source)
         {
             root.Bounds = source;
             Populate(root);
             return;
 
-            static void Populate(Octree<T> parent)
+            static void Populate(OctreeNode<T> parent)
             {
-                List<Octree<T>>? children = parent.ChildrenInternal;
-                if (children is null)
+                if (parent is not OctreeContainerNode<T> container)
                 {
                     return;
                 }
 
+                IReadOnlyList<OctreeNode<T>> children = container.Children;
                 UpdateBounds(children, parent.Bounds);
 
                 for (int i = 0; i < children.Count; i++)
                 {
-                    Octree<T> child = children[i];
+                    OctreeNode<T> child = children[i];
                     Populate(child);
                 }
             }
         }
 
-        static void UpdateBounds(IReadOnlyList<Octree<T>> octrees, Bounds source)
+        static void UpdateBounds(IReadOnlyList<OctreeNode<T>> octrees, Bounds source)
         {
             Vector3 halfSize = source.size * 0.5f;
 
@@ -603,5 +494,80 @@ namespace Jih.Unity.Infrastructure.Collisions
             bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
             octrees[7].Bounds = bounds;
         }
+
+        #region Object Pools
+        class OctreePool : ObjectPool<Octree<T>>
+        {
+            public OctreePool() : base(isThreadSafe: true)
+            {
+            }
+
+            protected override void Activate(Octree<T> obj)
+            {
+                base.Activate(obj);
+                obj.Reset();
+            }
+
+            protected override void Deactivate(Octree<T> obj)
+            {
+                base.Deactivate(obj);
+                obj.Reset();
+            }
+        }
+        class OctreeContainerPool : ObjectPool<OctreeContainerNode<T>>
+        {
+            public OctreeContainerPool() : base(isThreadSafe: true)
+            {
+            }
+
+            protected override void Activate(OctreeContainerNode<T> obj)
+            {
+                base.Activate(obj);
+                obj.Reset();
+            }
+
+            protected override void Deactivate(OctreeContainerNode<T> obj)
+            {
+                base.Deactivate(obj);
+                obj.Reset();
+            }
+        }
+        class OctreeLeafPool : ObjectPool<OctreeLeafNode<T>>
+        {
+            public OctreeLeafPool() : base(isThreadSafe: true)
+            {
+            }
+
+            protected override void Activate(OctreeLeafNode<T> obj)
+            {
+                base.Activate(obj);
+                obj.Reset();
+            }
+
+            protected override void Deactivate(OctreeLeafNode<T> obj)
+            {
+                base.Deactivate(obj);
+                obj.Reset();
+            }
+        }
+        #endregion
+
+        /// <returns>Return <c>false</c> to abort.</returns>
+        public delegate bool OctreeSearchDelegate(OctreeLeafNode<T> leaf0, OctreeLeafNode<T> leaf1);
+        /// <returns>Return <c>true</c> if the <paramref name="item"/> is intersects with the <paramref name="octreeBounds"/>.</returns>
+        /// <remarks>
+        /// Shallow-test is enough for the result such as <see cref="Bounds.Intersects(Bounds)"/>.
+        /// </remarks>
+        public delegate bool IsItemBoundsIntersectsDelegate(Bounds octreeBounds, T item);
+        /// <returns>Return <c>false</c> to abort.</returns>
+        public delegate bool ItemSearchDelegate(T item, OctreeLeafNode<T> leaf);
+        /// <returns>Return <c>true</c> if something is intersects with the <paramref name="octreeBounds"/>.</returns>
+        public delegate bool IsBoundsIntersectsDelegate(Bounds octreeBounds);
+        /// <returns>Return <c>false</c> to abort.</returns>
+        public delegate bool SearchDelegate(OctreeLeafNode<T> leaf);
+
+        static readonly OctreePool _octreePool = new();
+        static readonly OctreeContainerPool _octreeContainerPool = new();
+        static readonly OctreeLeafPool _octreeLeafPool = new();
     }
 }

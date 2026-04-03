@@ -14,209 +14,135 @@ using UnityEngine;
 
 namespace Jih.Unity.Infrastructure.Collisions
 {
-    /// <summary>
-    /// Please Check <see cref="Octree{T}"/> for details and usage.
-    /// </summary>
-    public class Quadtree<T>
+    public abstract class QuadtreeNode<T>
     {
-        public Rect Bounds { get; internal set; } = new(Vector2.zero, Vector2.zero);
+        public Rect Rect { get; internal set; } = new(Vector2.zero, Vector2.zero);
 
-        internal List<Quadtree<T>>? ChildrenInternal { get; set; }
-        public bool IsLeaf => ChildrenInternal is null;
+        /// <summary>
+        /// Root is <c>0</c>, increases when go down the tree.
+        /// </summary>
+        public int Depth { get; internal set; }
 
-        public int Depth { get; private set; }
-
-        internal List<T>? ItemsInternal { get; set; }
-        public IReadOnlyList<T>? Items => ItemsInternal;
-
-        public IReadOnlyList<T> GetLeafItems()
+        internal virtual void Reset()
         {
-            if (!IsLeaf)
-            {
-                throw new InvalidOperationException("This quadtree is not a leaf but getting items.");
-            }
-            if (ItemsInternal is null)
-            {
-                throw new InvalidOperationException("This quadtree is leaf but items list is null.");
-            }
-            return ItemsInternal;
-        }
-
-        protected virtual void Reset()
-        {
-            Bounds = new Rect(Vector2.zero, Vector2.zero);
+            Rect = new Rect(Vector2.zero, Vector2.zero);
             Depth = 0;
-
-            if (ItemsInternal is not null)
-            {
-                ItemsInternal.Clear();
-                _itemListPool.Release(ItemsInternal);
-                ItemsInternal = null;
-            }
-
-            if (ChildrenInternal is not null)
-            {
-                for (int i = 0; i < ChildrenInternal.Count; i++)
-                {
-                    ChildrenInternal[i].Reset();
-                }
-                ChildrenInternal.Clear();
-                _quadtreeListPool.Release(ChildrenInternal);
-                ChildrenInternal = null;
-            }
         }
+    }
 
-        public static QuadtreeRoot<T> Create(int targetDepth)
+    public class QuadtreeContainerNode<T> : QuadtreeNode<T>
+    {
+        internal List<QuadtreeNode<T>> ChildrenInternal { get; } = new();
+        public IReadOnlyList<QuadtreeNode<T>> Children => ChildrenInternal;
+
+        internal override void Reset()
+        {
+            for (int i = 0; i < ChildrenInternal.Count; i++)
+            {
+                ChildrenInternal[i].Reset();
+            }
+            ChildrenInternal.Clear();
+
+            base.Reset();
+        }
+    }
+
+    public sealed class QuadtreeLeafNode<T> : QuadtreeNode<T>
+    {
+        readonly List<T> _items = new();
+        public List<T> Items => _items;
+
+        internal override void Reset()
+        {
+            _items.Clear();
+
+            base.Reset();
+        }
+    }
+
+    public sealed class Quadtree<T> : QuadtreeContainerNode<T>
+    {
+        public static Quadtree<T> Create(int targetDepth)
         {
             if (targetDepth <= 0)
             {
                 throw new ArgumentException("Quadtree depth cannot be 0 or negative.", nameof(targetDepth));
             }
 
-            QuadtreeRoot<T> root = _quadtreeRootPool.Get();
-            Populate(root, 0, targetDepth);
-
-            root.UpdateLeaves();
+            Quadtree<T> root = _quadtreePool.Get();
+            root.Depth = 0;
+            Populate(root, root, 1, targetDepth);
             return root;
 
 
-            static void Populate(Quadtree<T> parent, int depth, int targetDepth)
+            static void Populate(Quadtree<T> root, QuadtreeContainerNode<T> parent, int currentDepth, int targetDepth)
             {
-                parent.Depth = depth;
-
-                if (depth == targetDepth)
+                if (currentDepth == targetDepth)
                 {
+                    for (int i = 0; i < 4; i++)
+                    {
+                        QuadtreeLeafNode<T> child = _quadtreeLeafPool.Get();
+                        child.Depth = currentDepth;
+                        parent.ChildrenInternal.Add(child);
+
+                        root.LeavesInternal.Add(child);
+                    }
                     return;
                 }
 
-                List<Quadtree<T>> children = _quadtreeListPool.Get();
-                parent.ChildrenInternal = children;
-
                 for (int i = 0; i < 4; i++)
                 {
-                    Quadtree<T> child = _quadtreePool.Get();
-                    children.Add(child);
+                    QuadtreeContainerNode<T> child = _quadtreeContainerPool.Get();
+                    child.Depth = currentDepth;
+                    parent.ChildrenInternal.Add(child);
 
-                    Populate(child, depth + 1, targetDepth);
+                    Populate(root, child, currentDepth + 1, targetDepth);
                 }
             }
         }
 
-        public static void Release(ref QuadtreeRoot<T>? root)
+        public static void Release(ref Quadtree<T>? root)
         {
             if (root is null)
             {
                 return;
             }
-            _quadtreeRootPool.Release(root);
+            _quadtreePool.Release(root);
             root = null;
         }
 
-        internal class QuadtreePool : ObjectPool<Quadtree<T>>
+        internal List<QuadtreeLeafNode<T>> LeavesInternal { get; } = new();
+        public IReadOnlyList<QuadtreeLeafNode<T>> Leaves => LeavesInternal;
+
+        internal override void Reset()
         {
-            public QuadtreePool() : base(isThreadSafe: true)
-            {
-            }
+            LeavesInternal.Clear();
 
-            protected override void Activate(Quadtree<T> obj)
-            {
-                obj.Reset();
-            }
-
-            protected override void Deactivate(Quadtree<T> obj)
-            {
-                obj.Reset();
-            }
-        }
-        internal class QuadtreeRootPool : ObjectPool<QuadtreeRoot<T>>
-        {
-            public QuadtreeRootPool() : base(isThreadSafe: true)
-            {
-            }
-
-            protected override void Activate(QuadtreeRoot<T> obj)
-            {
-                obj.Reset();
-            }
-            protected override void Deactivate(QuadtreeRoot<T> obj)
-            {
-                obj.Reset();
-            }
-        }
-
-        /// <returns>Return <c>false</c> to abort.</returns>
-        public delegate bool QuadtreeSearchDelegate(Quadtree<T> leaf0, Quadtree<T> leaf1);
-        /// <returns>Return <c>true</c> if the <paramref name="item"/> is intersects with the <paramref name="quadtreeBounds"/>.</returns>
-        /// <remarks>
-        /// Shallow-test is enough for the result such as <see cref="Rect.Overlaps(Rect)"/>.
-        /// </remarks>
-        public delegate bool IsItemBoundsIntersectsDelegate(Rect quadtreeBounds, T item);
-        /// <returns>Return <c>false</c> to abort.</returns>
-        public delegate bool ItemSearchDelegate(T item, Quadtree<T> leaf);
-        /// <returns>Return <c>true</c> if something is intersects with the <paramref name="quadtreeBounds"/>.</returns>
-        public delegate bool IsBoundsIntersectsDelegate(Rect quadtreeBounds);
-        /// <returns>Return <c>false</c> to abort.</returns>
-        public delegate bool SearchDelegate(Quadtree<T> leaf);
-
-        internal static readonly QuadtreePool _quadtreePool = new();
-        internal static readonly QuadtreeRootPool _quadtreeRootPool = new();
-        internal static readonly ListPool<Quadtree<T>> _quadtreeListPool = new(4, isThreadSafe: true);
-        internal static readonly ListPool<T> _itemListPool = new(isThreadSafe: true);
-    }
-
-    public sealed class QuadtreeRoot<T> : Quadtree<T>
-    {
-        readonly List<Quadtree<T>> _leaves = new();
-        public IReadOnlyList<Quadtree<T>> Leaves => _leaves;
-
-        protected override void Reset()
-        {
-            _leaves.Clear();
-            
             base.Reset();
         }
 
-        internal void UpdateLeaves()
+        /// <param name="root">Quadtree to update.</param>
+        /// <param name="itemSources">Items to hold by the <paramref name="root"/>.</param>
+        /// <param name="sourcePartitioner">Partitioner for looping all of <paramref name="itemSources"/> with parallelism. If <c>null</c>, will use standard <c>for</c> loop.</param>
+        /// <param name="sourcesTotalBounds">A bounds which must contains all of <paramref name="itemSources"/>.</param>
+        /// <remarks>
+        /// This method is garbage-free.
+        /// </remarks>
+        /// <exception cref="InvalidOperationException">
+        /// Throws when an item was not added to any quadtree.<br/>
+        /// This may occur when the <paramref name="sourcesTotalBounds"/> does not contains all of <paramref name="itemSources"/>. Then, the item wasn't passed any <paramref name="isItemBoundsIntersects"/>.
+        /// </exception>
+        public void Update(Quadtree<T> root, IReadOnlyList<T> itemSources, OrderablePartitioner<Tuple<int, int>>? sourcePartitioner, Rect sourcesTotalBounds, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
         {
-            _leaves.Clear();
-            Populate(this, _leaves);
-            return;
+            IReadOnlyList<QuadtreeLeafNode<T>> leaves = root.Leaves;
 
-
-            static void Populate(Quadtree<T> root, List<Quadtree<T>> buffer)
-            {
-                if (root.IsLeaf)
-                {
-                    buffer.Add(root);
-                }
-                if (root.ChildrenInternal is not null)
-                {
-                    for (int c = 0; c < root.ChildrenInternal.Count; c++)
-                    {
-                        Populate(root.ChildrenInternal[c], buffer);
-                    }
-                }
-            }
-        }
-
-        public void Update(IReadOnlyList<T> itemSources, OrderablePartitioner<Tuple<int, int>>? sourcePartitioner, Rect sourcesTotalBounds, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
-        {
-            IReadOnlyList<Quadtree<T>> leaves = Leaves;
-
-            UpdateBounds(this, sourcesTotalBounds);
+            UpdateBounds(root, sourcesTotalBounds);
 
             for (int i = 0; i < leaves.Count; i++)
             {
-                Quadtree<T> leaf = leaves[i];
+                QuadtreeLeafNode<T> leaf = leaves[i];
 
-                if (leaf.ItemsInternal is null)
-                {
-                    leaf.ItemsInternal = _itemListPool.Get();
-                }
-                else
-                {
-                    leaf.ItemsInternal.Clear();
-                }
+                leaf.Items.Clear();
             }
 
             if (sourcePartitioner is not null)
@@ -227,28 +153,9 @@ namespace Jih.Unity.Infrastructure.Collisions
                     {
                         T item = itemSources[i];
 
-                        bool anyAdded = false;
-                        for (int l = 0; l < leaves.Count; l++)
+                        if (!TryAddItemInternal(this, item, isItemBoundsIntersects, true))
                         {
-                            Quadtree<T> leaf = leaves[l];
-
-                            if (!isItemBoundsIntersects(leaf.Bounds, item))
-                            {
-                                continue;
-                            }
-
-                            List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
-
-                            lock (leafItems)
-                            {
-                                leafItems.Add(item);
-                            }
-                            anyAdded = true;
-                        }
-
-                        if (!anyAdded)
-                        {
-                            throw new InvalidOperationException("An item was not added to any octree.");
+                            throw new InvalidOperationException("An item was not added to any quadtree.");
                         }
                     }
                 });
@@ -259,39 +166,123 @@ namespace Jih.Unity.Infrastructure.Collisions
                 {
                     T item = itemSources[i];
 
-                    bool anyAdded = false;
-                    for (int l = 0; l < leaves.Count; l++)
+                    if (!TryAddItemInternal(this, item, isItemBoundsIntersects, false))
                     {
-                        Quadtree<T> leaf = leaves[l];
-
-                        if (!isItemBoundsIntersects(leaf.Bounds, item))
-                        {
-                            continue;
-                        }
-
-                        List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
-
-                        leafItems.Add(item);
-                        anyAdded = true;
-                    }
-
-                    if (!anyAdded)
-                    {
-                        throw new InvalidOperationException("An item was not added to any octree.");
+                        throw new InvalidOperationException("An item was not added to any quadtree.");
                     }
                 }
             }
         }
 
+        /// <summary>
+        /// Try to add an item to the quadtree without updating bounds.
+        /// </summary>
+        /// <remarks>
+        /// This is useful for the case that the quadtree bounds already cover whole expecting space and spawning some items to search.<br/>
+        /// This method does <c>NOT</c> check duplication.
+        /// </remarks>
+        /// <returns>Whether the <paramref name="item"/> was successfully added to the quadtree.</returns>
+        public bool TryAddItem(T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
+        {
+            return TryAddItemInternal(this, item, isItemBoundsIntersects, false);
+        }
+
+        static bool TryAddItemInternal(Quadtree<T> root, T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects, bool useLock)
+        {
+            return Populate(root);
+
+
+            bool Populate(QuadtreeNode<T> self)
+            {
+                if (!isItemBoundsIntersects(self.Rect, item))
+                {
+                    return false;
+                }
+
+                if (self is QuadtreeLeafNode<T> selfLeaf)
+                {
+                    List<T> leafItems = selfLeaf.Items;
+                    if (useLock)
+                    {
+                        lock (leafItems)
+                        {
+                            leafItems.Add(item);
+                        }
+                    }
+                    else
+                    {
+                        leafItems.Add(item);
+                    }
+                    return true;
+                }
+
+                if (self is QuadtreeContainerNode<T> selfContainer)
+                {
+                    IReadOnlyList<QuadtreeNode<T>> children = selfContainer.Children;
+
+                    bool addedToAny = false;
+                    for (int c = 0; c < children.Count; c++)
+                    {
+                        addedToAny |= Populate(children[c]);
+                    }
+                    return addedToAny;
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Remove an item from the quadtree without updating bounds.
+        /// </summary>
+        /// <remarks>
+        /// This method will search the item in whole quadtree and remove it all.
+        /// </remarks>
+        /// <returns>Whether the <paramref name="item"/> was found and removed.</returns>
+        public bool RemoveItem(T item)
+        {
+            IReadOnlyList<QuadtreeLeafNode<T>> leaves = Leaves;
+
+            bool anyRemoved = false;
+            for (int l = 0; l < leaves.Count; l++)
+            {
+                QuadtreeLeafNode<T> leaf = leaves[l];
+
+                anyRemoved |= leaf.Items.Remove(item);
+            }
+            return anyRemoved;
+        }
+
+        /// <summary>
+        /// Remove items from the quadtree without updating bounds.
+        /// </summary>
+        /// <returns>Total sum of removed items count.</returns>
+        public int RemoveAllItems(Predicate<T> match)
+        {
+            IReadOnlyList<QuadtreeLeafNode<T>> leaves = Leaves;
+
+            int count = 0;
+            for (int l = 0; l < leaves.Count; l++)
+            {
+                QuadtreeLeafNode<T> leaf = leaves[l];
+
+                List<T> leafItems = leaf.Items;
+
+                count += leafItems.RemoveAll(match);
+            }
+            return count;
+        }
+
+        /// <returns>Whether the <paramref name="item"/> was found in any leaf quadtree.</returns>
         public bool ContainsItem(T item)
         {
-            IReadOnlyList<Quadtree<T>> leaves = Leaves;
+            IReadOnlyList<QuadtreeLeafNode<T>> leaves = Leaves;
 
             for (int l = 0; l < leaves.Count; l++)
             {
-                Quadtree<T> leaf = leaves[l];
+                QuadtreeLeafNode<T> leaf = leaves[l];
 
-                List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
+                List<T> leafItems = leaf.Items;
 
                 if (leafItems.Contains(item))
                 {
@@ -301,97 +292,49 @@ namespace Jih.Unity.Infrastructure.Collisions
             return false;
         }
 
-        public bool TryAddItem(T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
+        /// <summary>Search quadtree versus quadtree.</summary>
+        /// <param name="allowSwap">
+        /// Whether allowing swap <c>this</c> and <paramref name="other"/> to increase performance.<br/>
+        /// If <c>true</c>, input arguments order for <paramref name="search"/> can be different with <c>this</c> after <paramref name="other"/> order.
+        /// </param>
+        public void Search(Quadtree<T> other, bool allowSwap, QuadtreeSearchDelegate search)
         {
-            IReadOnlyList<Quadtree<T>> leaves = Leaves;
-
-            for (int l = 0; l < leaves.Count; l++)
-            {
-                Quadtree<T> leaf = leaves[l];
-
-                if (!isItemBoundsIntersects(leaf.Bounds, item))
-                {
-                    continue;
-                }
-
-                List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
-
-                leafItems.Add(item);
-                return true;
-            }
-            return false;
-        }
-
-        public bool RemoveItem(T item)
-        {
-            IReadOnlyList<Quadtree<T>> leaves = Leaves;
-
-            for (int l = 0; l < leaves.Count; l++)
-            {
-                Quadtree<T> leaf = leaves[l];
-
-                List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
-
-                if (leafItems.Remove(item))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        public int RemoveAllItems(Predicate<T> match)
-        {
-            IReadOnlyList<Quadtree<T>> leaves = Leaves;
-
-            int count = 0;
-            for (int l = 0; l < leaves.Count; l++)
-            {
-                Quadtree<T> leaf = leaves[l];
-
-                List<T> leafItems = leaf.ItemsInternal ?? throw new InvalidOperationException();
-
-                count += leafItems.RemoveAll(match);
-            }
-            return count;
-        }
-
-        public void Search(QuadtreeRoot<T> other, bool allowSwap, QuadtreeSearchDelegate search)
-        {
-            QuadtreeRoot<T> searchRoot = this, searchOther = other;
+            Quadtree<T> searchRoot = this, searchOther = other;
             if (allowSwap &&
                 other.Leaves.Count > Leaves.Count)
             {
+                // Swapping for performance.
+                // The search will be performed in the tree with more leaves (deeper tree).
                 searchRoot = other;
                 searchOther = this;
             }
 
             for (int i = 0; i < searchOther.Leaves.Count; i++)
             {
-                Quadtree<T> otherLeaf = searchOther.Leaves[i];
+                QuadtreeLeafNode<T> otherLeaf = searchOther.Leaves[i];
                 if (!PopulateSearch(searchRoot, otherLeaf, search))
                 {
                     return;
                 }
             }
         }
-        static bool PopulateSearch(Quadtree<T> root, Quadtree<T> otherLeaf, QuadtreeSearchDelegate search)
+        static bool PopulateSearch(QuadtreeNode<T> self, QuadtreeLeafNode<T> otherLeaf, QuadtreeSearchDelegate search)
         {
-            if (!root.Bounds.Overlaps(otherLeaf.Bounds))
+            if (!self.Rect.Overlaps(otherLeaf.Rect))
             {
                 return true;
             }
 
-            if (root.IsLeaf && !search(root, otherLeaf))
+            if (self is QuadtreeLeafNode<T> selfLeaf && !search(selfLeaf, otherLeaf))
             {
                 return false;
             }
 
-            if (root.ChildrenInternal is not null)
+            if (self is QuadtreeContainerNode<T> selfContainer)
             {
-                for (int c = 0; c < root.ChildrenInternal.Count; c++)
+                for (int c = 0; c < selfContainer.Children.Count; c++)
                 {
-                    Quadtree<T> child = root.ChildrenInternal[c];
+                    QuadtreeNode<T> child = selfContainer.Children[c];
                     if (!PopulateSearch(child, otherLeaf, search))
                     {
                         return false;
@@ -401,27 +344,31 @@ namespace Jih.Unity.Infrastructure.Collisions
             return true;
         }
 
+        /// <summary>
+        /// Search quadtree versus item.
+        /// </summary>
+        /// <param name="item">Searching item.</param>
         public void Search(T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects, ItemSearchDelegate search)
         {
             PopulateSearch(this, item, isItemBoundsIntersects, search);
         }
-        static bool PopulateSearch(Quadtree<T> root, T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects, ItemSearchDelegate search)
+        static bool PopulateSearch(QuadtreeNode<T> self, T item, IsItemBoundsIntersectsDelegate isItemBoundsIntersects, ItemSearchDelegate search)
         {
-            if (!isItemBoundsIntersects(root.Bounds, item))
+            if (!isItemBoundsIntersects(self.Rect, item))
             {
                 return true;
             }
 
-            if (root.IsLeaf && !search(item, root))
+            if (self is QuadtreeLeafNode<T> selfLeaf && !search(item, selfLeaf))
             {
                 return false;
             }
 
-            if (root.ChildrenInternal is not null)
+            if (self is QuadtreeContainerNode<T> selfContainer)
             {
-                for (int c = 0; c < root.ChildrenInternal.Count; c++)
+                for (int c = 0; c < selfContainer.Children.Count; c++)
                 {
-                    Quadtree<T> child = root.ChildrenInternal[c];
+                    QuadtreeNode<T> child = selfContainer.Children[c];
                     if (!PopulateSearch(child, item, isItemBoundsIntersects, search))
                     {
                         return false;
@@ -431,27 +378,30 @@ namespace Jih.Unity.Infrastructure.Collisions
             return true;
         }
 
+        /// <summary>
+        /// Search quadtree but the caller have to handle concrete mechanism.
+        /// </summary>
         public void Search(IsBoundsIntersectsDelegate isBoundsIntersects, SearchDelegate search)
         {
             PopulateSearch(this, isBoundsIntersects, search);
         }
-        static bool PopulateSearch(Quadtree<T> root, IsBoundsIntersectsDelegate isBoundsIntersects, SearchDelegate search)
+        static bool PopulateSearch(QuadtreeNode<T> self, IsBoundsIntersectsDelegate isBoundsIntersects, SearchDelegate search)
         {
-            if (!isBoundsIntersects(root.Bounds))
+            if (!isBoundsIntersects(self.Rect))
             {
                 return true;
             }
 
-            if (root.IsLeaf && !search(root))
+            if (self is QuadtreeLeafNode<T> selfLeaf && !search(selfLeaf))
             {
                 return false;
             }
 
-            if (root.ChildrenInternal is not null)
+            if (self is QuadtreeContainerNode<T> selfContainer)
             {
-                for (int c = 0; c < root.ChildrenInternal.Count; c++)
+                for (int c = 0; c < selfContainer.Children.Count; c++)
                 {
-                    Quadtree<T> child = root.ChildrenInternal[c];
+                    QuadtreeNode<T> child = selfContainer.Children[c];
                     if (!PopulateSearch(child, isBoundsIntersects, search))
                     {
                         return false;
@@ -461,30 +411,31 @@ namespace Jih.Unity.Infrastructure.Collisions
             return true;
         }
 
-        static void UpdateBounds(Quadtree<T> root, Rect source)
+        static void UpdateBounds(QuadtreeNode<T> root, Rect source)
         {
-            root.Bounds = source;
+            root.Rect = source;
             Populate(root);
             return;
 
-            static void Populate(Quadtree<T> parent)
+            static void Populate(QuadtreeNode<T> parent)
             {
-                List<Quadtree<T>>? children = parent.ChildrenInternal;
-                if (children is null)
+                if (parent is not QuadtreeContainerNode<T> container)
                 {
                     return;
                 }
 
-                UpdateBounds(children, parent.Bounds);
+                IReadOnlyList<QuadtreeNode<T>> children = container.Children;
+                UpdateBounds(children, parent.Rect);
 
                 for (int i = 0; i < children.Count; i++)
                 {
-                    Populate(children[i]);
+                    QuadtreeNode<T> child = children[i];
+                    Populate(child);
                 }
             }
         }
 
-        static void UpdateBounds(IReadOnlyList<Quadtree<T>> quadtrees, Rect source)
+        static void UpdateBounds(IReadOnlyList<QuadtreeNode<T>> quadtrees, Rect source)
         {
             Vector2 halfSize = source.size * 0.5f;
 
@@ -494,22 +445,97 @@ namespace Jih.Unity.Infrastructure.Collisions
             Rect bounds = new(min, halfSize);
             bounds.min -= epsilon;
             bounds.max += epsilon;
-            quadtrees[0].Bounds = bounds;
+            quadtrees[0].Rect = bounds;
 
             bounds = new(new Vector2(min.x + halfSize.x, min.y), halfSize);
             bounds.min -= epsilon;
             bounds.max += epsilon;
-            quadtrees[1].Bounds = bounds;
+            quadtrees[1].Rect = bounds;
 
             bounds = new(new Vector2(min.x, min.y + halfSize.y), halfSize);
             bounds.min -= epsilon;
             bounds.max += epsilon;
-            quadtrees[2].Bounds = bounds;
+            quadtrees[2].Rect = bounds;
 
             bounds = new(min + halfSize, halfSize);
             bounds.min -= epsilon;
             bounds.max += epsilon;
-            quadtrees[3].Bounds = bounds;
+            quadtrees[3].Rect = bounds;
         }
+
+        #region Object Pools
+        class QuadtreePool : ObjectPool<Quadtree<T>>
+        {
+            public QuadtreePool() : base(isThreadSafe: true)
+            {
+            }
+
+            protected override void Activate(Quadtree<T> obj)
+            {
+                base.Activate(obj);
+                obj.Reset();
+            }
+
+            protected override void Deactivate(Quadtree<T> obj)
+            {
+                base.Deactivate(obj);
+                obj.Reset();
+            }
+        }
+        class QuadtreeContainerPool : ObjectPool<QuadtreeContainerNode<T>>
+        {
+            public QuadtreeContainerPool() : base(isThreadSafe: true)
+            {
+            }
+
+            protected override void Activate(QuadtreeContainerNode<T> obj)
+            {
+                base.Activate(obj);
+                obj.Reset();
+            }
+
+            protected override void Deactivate(QuadtreeContainerNode<T> obj)
+            {
+                base.Deactivate(obj);
+                obj.Reset();
+            }
+        }
+        class QuadtreeLeafPool : ObjectPool<QuadtreeLeafNode<T>>
+        {
+            public QuadtreeLeafPool() : base(isThreadSafe: true)
+            {
+            }
+
+            protected override void Activate(QuadtreeLeafNode<T> obj)
+            {
+                base.Activate(obj);
+                obj.Reset();
+            }
+
+            protected override void Deactivate(QuadtreeLeafNode<T> obj)
+            {
+                base.Deactivate(obj);
+                obj.Reset();
+            }
+        }
+        #endregion
+
+        /// <returns>Return <c>false</c> to abort.</returns>
+        public delegate bool QuadtreeSearchDelegate(QuadtreeLeafNode<T> leaf0, QuadtreeLeafNode<T> leaf1);
+        /// <returns>Return <c>true</c> if the <paramref name="item"/> is intersects with the <paramref name="quadtreeBounds"/>.</returns>
+        /// <remarks>
+        /// Shallow-test is enough for the result such as <see cref="Rect.Overlaps(Rect)"/>.
+        /// </remarks>
+        public delegate bool IsItemBoundsIntersectsDelegate(Rect quadtreeBounds, T item);
+        /// <returns>Return <c>false</c> to abort.</returns>
+        public delegate bool ItemSearchDelegate(T item, QuadtreeLeafNode<T> leaf);
+        /// <returns>Return <c>true</c> if something is intersects with the <paramref name="quadtreeBounds"/>.</returns>
+        public delegate bool IsBoundsIntersectsDelegate(Rect quadtreeBounds);
+        /// <returns>Return <c>false</c> to abort.</returns>
+        public delegate bool SearchDelegate(QuadtreeLeafNode<T> leaf);
+
+        static readonly QuadtreePool _quadtreePool = new();
+        static readonly QuadtreeContainerPool _quadtreeContainerPool = new();
+        static readonly QuadtreeLeafPool _quadtreeLeafPool = new();
     }
 }
