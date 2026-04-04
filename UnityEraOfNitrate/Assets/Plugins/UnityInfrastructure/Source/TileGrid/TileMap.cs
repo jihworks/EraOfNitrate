@@ -13,8 +13,11 @@ namespace Jih.Unity.Infrastructure.TileGrid
     /// Grid structure of square tiles in 2D euclidean space.
     /// </summary>
     /// <remarks>
+    /// Using Screen Coordinate System<br/>
     /// +X is right, +Y is down.<br/>
-    /// Left-Top corner is origin (0, 0).<br/>
+    /// Left-Top corner is origin(0, 0).<br/>
+    /// Positive rotation is CW.<br/>
+    /// <br/>
     /// Assuming all of cells are filled in the grid. Hole is not supported.
     /// </remarks>
     public class TileMap

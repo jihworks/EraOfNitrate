@@ -7,38 +7,6 @@
 
 namespace Jih.Unity.Infrastructure.TileGrid
 {
-    public struct TileCellCoord
-    {
-        public int X, Y;
-
-        public TileCellCoord(int x, int y)
-        {
-            X = x;
-            Y = y;
-        }
-
-        public readonly override string ToString()
-        {
-            return $"<{X}, {Y}>";
-        }
-    }
-
-    public struct TileVertexCoord
-    {
-        public int X, Y;
-
-        public TileVertexCoord(int x, int y)
-        {
-            X = x;
-            Y = y;
-        }
-
-        public readonly override string ToString()
-        {
-            return $"<{X}, {Y}>";
-        }
-    }
-
     public struct TileEdgeCoord
     {
         public TileEdgeOrientation Orientation;
