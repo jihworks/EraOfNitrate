@@ -1,0 +1,17 @@
+{
+    "name": "Jih.Unity.EraOfNitrogen",
+    "rootNamespace": "Jih.Unity.EraOfNitrogen",
+    "references": [
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:5d8ed897c1ca6b740a9ed686405a121b"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
