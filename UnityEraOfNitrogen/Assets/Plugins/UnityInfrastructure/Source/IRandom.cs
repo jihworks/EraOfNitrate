@@ -28,6 +28,13 @@ namespace Jih.Unity.Infrastructure
 
     public class SystemRandom : Random, IRandomInt32
     {
+        public SystemRandom()
+        {
+        }
+        public SystemRandom(int seed) : base(seed)
+        {
+        }
+
         public int NextInt32(int minInclusive, int maxExclusive)
         {
             return Next(minInclusive, maxExclusive);

@@ -31,13 +31,13 @@ namespace Jih.Unity.Infrastructure.HexaGrid
             Y = y;
         }
 
-        public static explicit operator HexaCoord(HexaIndex hexIndex)
+        public static explicit operator HexaCoord(HexaIndex hexaIndex)
         {
-            return ConvertTo(hexIndex);
+            return ConvertTo(hexaIndex);
         }
-        public static explicit operator HexaIndex(HexaCoord hexCoord)
+        public static explicit operator HexaIndex(HexaCoord hexaCoord)
         {
-            return ConvertFrom(hexCoord);
+            return ConvertFrom(hexaCoord);
         }
     }
 }
