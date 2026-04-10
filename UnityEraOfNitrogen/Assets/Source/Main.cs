@@ -59,7 +59,7 @@ namespace Jih.Unity.EraOfNitrogen
 
         void Start()
         {
-            // Default runtime frames.
+            // 프레임 기본값.
             InputFrameStack.Push(new InputFrame(this, ui: false, player: false));
             CursorFrameStack.Push(new CursorFrame(this, lockMode: CursorLockMode.None, cursorVisible: true));
             TimeFrameStack.Push(new TimeFrame(this, timeScale: 1f));

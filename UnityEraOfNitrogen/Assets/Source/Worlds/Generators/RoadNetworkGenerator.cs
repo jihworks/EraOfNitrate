@@ -12,18 +12,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
+namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 {
     class RoadNetworkGenerator
     {
         readonly Settings _settings;
-        readonly MapGrid _mapGrid;
-        readonly IReadOnlyList<MapCell> _cityCells;
+        readonly GeneratorGrid _grid;
+        readonly IReadOnlyList<GeneratorCell> _cityCells;
 
-        public RoadNetworkGenerator(Settings settings, MapGrid mapGrid, IReadOnlyList<MapCell> cityCells)
+        public RoadNetworkGenerator(Settings settings, GeneratorGrid grid, IReadOnlyList<GeneratorCell> cityCells)
         {
             _settings = settings;
-            _mapGrid = mapGrid;
+            _grid = grid;
             _cityCells = cityCells;
         }
 
@@ -34,17 +34,17 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 cell.HasRoad = true;
             }
 
-            Connect(_mapGrid, _cityCells);
+            Connect(_grid, _cityCells);
         }
 
-        static void Connect(MapGrid mapGrid, IReadOnlyList<MapCell> cityCells)
+        static void Connect(GeneratorGrid mapGrid, IReadOnlyList<GeneratorCell> cityCells)
         {
-            Queue<MapCell> startings = new(cityCells);
-            while (startings.TryDequeue(out MapCell start))
+            Queue<GeneratorCell> startings = new(cityCells);
+            while (startings.TryDequeue(out GeneratorCell start))
             {
                 HexaCoord startCoord = start.Coord;
 
-                List<(MapCell Cell, int Distance)> targets = new(cityCells.Count);
+                List<(GeneratorCell Cell, int Distance)> targets = new(cityCells.Count);
                 targets.AddRange(cityCells.Where(c => c != start).Select(c => (c, HexaCoord.Distance(c.Coord, startCoord))));
                 targets.Sort((l, r) => l.Distance.CompareTo(r.Distance));
 
@@ -58,7 +58,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                         throw new InvalidOperationException($"Failed to connect road from {start.Coord} to {goal.Coord}.");
                     }
 
-                    foreach (var roadCell in result.ResultPath.Cast<MapCell>())
+                    foreach (var roadCell in result.ResultPath.Cast<GeneratorCell>())
                     {
                         roadCell.HasRoad = true;
                     }
@@ -68,20 +68,20 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 
         static IEnumerable<HexaCell> Access(HexaCell current)
         {
-            return current.EnumerateNeighbors().Cast<MapCell>().Where(c => c.IsLand);
+            return current.EnumerateNeighbors().Cast<GeneratorCell>().Where(c => c.IsLand);
         }
 
         static int Cost(HexaCell current, HexaCell next)
         {
-            MapCell nextCell = (MapCell)next;
+            GeneratorCell nextCell = (GeneratorCell)next;
 
-            int cost = 100; // Base cost.
+            int cost = 100; // 기본 코스트.
             if (nextCell.HasRoad)
             {
                 cost -= 20;
             }
 
-            int roadCount = next.EnumerateNeighbors().Cast<MapCell>().Count(c => c != current && c.HasRoad);
+            int roadCount = next.EnumerateNeighbors().Cast<GeneratorCell>().Count(c => c != current && c.HasRoad);
             cost -= roadCount * 10;
 
             return cost;

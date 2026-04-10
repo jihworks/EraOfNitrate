@@ -7,18 +7,19 @@
 
 #nullable enable
 
-using System.Collections.Generic;
+using Jih.Unity.Infrastructure.Runtime;
+using UnityEngine;
 
-namespace Jih.Unity.EraOfNitrogen.Worlds
+namespace Jih.Unity.EraOfNitrogen.Assets.Source
 {
-    public class MapProvince
+    public class Rules : MonoBehaviour
     {
-        public MapCell CityCell { get; }
-        public List<MapCell> Cells { get; } = new();
+        static SingletonStorage<Rules> _instance;
+        public static Rules Instance => _instance.Get();
 
-        public MapProvince(MapCell cityCell)
+        public Rules()
         {
-            CityCell = cityCell;
+            _instance = new SingletonStorage<Rules>();
         }
     }
 }

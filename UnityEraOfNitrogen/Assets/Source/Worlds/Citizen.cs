@@ -7,34 +7,16 @@
 
 #nullable enable
 
-using Jih.Unity.Infrastructure.HexaGrid;
-using System.Collections.Generic;
-using System.Linq;
+using Newtonsoft.Json;
 
 namespace Jih.Unity.EraOfNitrogen.Worlds
 {
-    public class MapCell : HexaCell
+    [JsonObject]
+    public class Citizen
     {
-        /// <summary>
-        /// Otherwise, ocean.
-        /// </summary>
-        public bool IsLand { get; set; }
-        /// <summary>
-        /// Whether any neighbor is ocean cell.
-        /// </summary>
-        public bool IsCoastlineLand { get; set; }
-
-        public bool HasRoad { get; set; }
-
-        public MapProvince? Province { get; set; }
-
-        public MapCell(HexaMap map, HexaIndex index, HexaCoord coord) : base(map, index, coord)
+        [JsonConstructor]
+        private Citizen()
         {
-        }
-
-        public new IEnumerable<MapCell> EnumerateNeighbors()
-        {
-            return base.EnumerateNeighbors().Cast<MapCell>();
         }
     }
 }

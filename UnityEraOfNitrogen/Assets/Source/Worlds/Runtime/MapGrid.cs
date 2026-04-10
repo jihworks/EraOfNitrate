@@ -8,16 +8,20 @@
 #nullable enable
 
 using Jih.Unity.Infrastructure.HexaGrid;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Jih.Unity.EraOfNitrogen.Worlds
+namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 {
     public class MapGrid : HexaMap
     {
-        public MapGrid(int width, int height)
+        public new MapCell this[HexaCoord coord] => GetCell(coord) ?? throw new ArgumentOutOfRangeException(nameof(coord));
+        public new MapCell this[HexaIndex index] => GetCell(index) ?? throw new ArgumentOutOfRangeException(nameof(index));
+
+        public MapGrid(int width, int height, Tile[,] tiles)
             : base(width, height,
-                  (map, index, coord) => new MapCell(map, index, coord),
+                  (map, index, coord) => CreateCell(tiles, map, index, coord),
                   null,
                   null)
         {
@@ -39,6 +43,26 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         public new IEnumerable<MapCell> EnumerateCells()
         {
             return base.EnumerateCells().Cast<MapCell>();
+        }
+
+        static MapCell CreateCell(Tile[,] tiles, HexaMap map, HexaIndex index, HexaCoord coord)
+        {
+            return new MapCell(tiles[index.Y, index.X], map, index, coord);
+        }
+    }
+
+    public class MapCell : HexaCell
+    {
+        public Tile Tile { get; }
+
+        public MapCell(Tile tile, HexaMap map, HexaIndex index, HexaCoord coord) : base(map, index, coord)
+        {
+            Tile = tile;
+        }
+
+        public new IEnumerable<MapCell> EnumerateNeighbors()
+        {
+            return base.EnumerateNeighbors().Cast<MapCell>();
         }
     }
 }

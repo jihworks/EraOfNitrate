@@ -12,32 +12,32 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
+namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 {
     class PangaeaGenerator
     {
         readonly Settings _settings;
-        readonly MapGrid _mapGrid;
+        readonly GeneratorGrid _grid;
         readonly RandomStream _random;
 
-        public List<MapCell>? ResultLandCells { get; private set; }
+        public List<GeneratorCell>? ResultLandCells { get; private set; }
 
-        public PangaeaGenerator(Settings settings, MapGrid mapGrid, RandomStream random)
+        public PangaeaGenerator(Settings settings, GeneratorGrid grid, RandomStream random)
         {
             _settings = settings;
-            _mapGrid = mapGrid;
+            _grid = grid;
             _random = random;
         }
 
         public void Execute()
         {
-            HashSet<MapCell> landCells = GenerateLandmass(_random, _mapGrid, _settings.LandRatio);
+            HashSet<GeneratorCell> landCells = GenerateLandmass(_random, _grid, _settings.LandRatio);
 
-            RemoveInlandWater(landCells, _mapGrid);
+            RemoveInlandWater(landCells, _grid);
 
-            List<MapCell> landCellsList = new(landCells);
+            List<GeneratorCell> landCellsList = new(landCells);
 
-            foreach (var cell in _mapGrid.EnumerateCells())
+            foreach (var cell in _grid.EnumerateCells())
             {
                 cell.IsLand = false;
                 cell.IsCoastlineLand = false;
@@ -48,33 +48,32 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             }
             foreach (var landCell in landCellsList)
             {
-                // If there is any ocean cell, it is coastline land.
                 landCell.IsCoastlineLand = landCell.EnumerateNeighbors().Any(n => !n.IsLand);
             }
 
             ResultLandCells = landCellsList;
         }
 
-        static HashSet<MapCell> GenerateLandmass(RandomStream random, MapGrid mapGrid, double landRatioSetting)
+        static HashSet<GeneratorCell> GenerateLandmass(RandomStream random, GeneratorGrid mapGrid, double landRatioSetting)
         {
-            HashSet<MapCell> landCells = new();
+            HashSet<GeneratorCell> landCells = new();
             int centerX = mapGrid.Width / 2;
             int centerY = mapGrid.Height / 2;
 
-            // Set starting point.
-            MapCell? centerCell = mapGrid.GetCell(centerX, centerY);
+            // 시작점 설정.
+            GeneratorCell? centerCell = mapGrid.GetCell(centerX, centerY);
             if (centerCell is not null)
             {
                 landCells.Add(centerCell);
             }
 
             int targetLandCells = (int)(mapGrid.Width * mapGrid.Height * landRatioSetting);
-            Queue<MapCell> expansionFrontier = new();
+            Queue<GeneratorCell> expansionFrontier = new();
             expansionFrontier.Enqueue(centerCell!);
 
             while (landCells.Count < targetLandCells && expansionFrontier.Count > 0)
             {
-                MapCell current = expansionFrontier.Dequeue();
+                GeneratorCell current = expansionFrontier.Dequeue();
 
                 foreach (var neighbor in current.EnumerateNeighbors())
                 {
@@ -95,9 +94,9 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             return landCells;
         }
 
-        static float CalculateExpandProbability(MapCell cell, HashSet<MapCell> landCells, MapGrid mapGrid)
+        static float CalculateExpandProbability(GeneratorCell cell, HashSet<GeneratorCell> landCells, GeneratorGrid mapGrid)
         {
-            // Reduce probability by distance from center.
+            // 중앙에서 멀어질 수록 확률 감소.
             Vector2Int centerIndex = new(mapGrid.Width / 2, mapGrid.Height / 2);
             Vector2Int cellIndex = new(cell.Index.X, cell.Index.Y);
             float distanceFromCenter = (cellIndex - cellIndex).magnitude;
@@ -105,25 +104,25 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             float maxDistance = new Vector2Int(mapGrid.Width, mapGrid.Height).magnitude * 0.5f;
             float baseChance = 1f - (distanceFromCenter / maxDistance);
 
-            // Increase probability by land adjacent cell count.
+            // 인접 셀이 땅이면 확률 증가.
             int adjacentLandCount = cell.EnumerateNeighbors().Count(adj => landCells.Contains(adj));
             float adjacentBonus = adjacentLandCount * 0.1f;
 
             return Mathf.Clamp01(baseChance + adjacentBonus);
         }
 
-        static void RemoveInlandWater(HashSet<MapCell> landCells, MapGrid mapGrid)
+        static void RemoveInlandWater(HashSet<GeneratorCell> landCells, GeneratorGrid mapGrid)
         {
-            HashSet<MapCell> waterCells = new(mapGrid.EnumerateCells().Where(c => !landCells.Contains(c)));
-            HashSet<MapCell> processedWater = new();
+            HashSet<GeneratorCell> waterCells = new(mapGrid.EnumerateCells().Where(c => !landCells.Contains(c)));
+            HashSet<GeneratorCell> processedWater = new();
 
             while (waterCells.Count > 0)
             {
-                HashSet<MapCell> waterGroup = FindConnectedWaterCells(waterCells.First(), waterCells);
+                HashSet<GeneratorCell> waterGroup = FindConnectedWaterCells(waterCells.First(), waterCells);
 
                 bool isInland = IsWaterGroupInland(waterGroup, landCells);
 
-                // If inland lake, change to land.
+                // 내륙 호수인 경우, 땅으로 전환.
                 if (isInland)
                 {
                     foreach (var cell in waterGroup)
@@ -134,7 +133,6 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 }
                 else
                 {
-                    // If coast water, check as processed.
                     foreach (var cell in waterGroup)
                     {
                         waterCells.Remove(cell);
@@ -144,17 +142,17 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             }
         }
 
-        static HashSet<MapCell> FindConnectedWaterCells(MapCell start, HashSet<MapCell> waterCells)
+        static HashSet<GeneratorCell> FindConnectedWaterCells(GeneratorCell start, HashSet<GeneratorCell> waterCells)
         {
-            HashSet<MapCell> connected = new();
-            Queue<MapCell> queue = new();
+            HashSet<GeneratorCell> connected = new();
+            Queue<GeneratorCell> queue = new();
 
             queue.Enqueue(start);
             connected.Add(start);
 
             while (queue.Count > 0)
             {
-                MapCell current = queue.Dequeue();
+                GeneratorCell current = queue.Dequeue();
 
                 foreach (var neighbor in current.EnumerateNeighbors())
                 {
@@ -169,19 +167,19 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             return connected;
         }
 
-        static bool IsWaterGroupInland(HashSet<MapCell> waterGroup, HashSet<MapCell> landCells)
+        static bool IsWaterGroupInland(HashSet<GeneratorCell> waterGroup, HashSet<GeneratorCell> landCells)
         {
             foreach (var waterCell in waterGroup)
             {
-                // If a cell at border of the map, it is ocean.
+                // 보더 셀인 경우 바다.
                 if (waterCell.EnumerateNeighbors().Count() < 6)
                 {
                     return false;
                 }
             }
 
-            // Collect border cells of the water group.
-            HashSet<MapCell> borderCells = new();
+            // 워터 그룹에서 보더 셀 수집.
+            HashSet<GeneratorCell> borderCells = new();
             foreach (var waterCell in waterGroup)
             {
                 foreach (var neighbor in waterCell.EnumerateNeighbors())
@@ -194,12 +192,11 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 }
             }
 
-            // If all border cells are contact with land, it is a lake.
+            // 모든 워터 그룹의 보더 셀이 땅에 연접해 있다면 내륙 호수.
             foreach (var borderCell in borderCells)
             {
                 foreach (var neighbor in borderCell.EnumerateNeighbors())
                 {
-                    // If neighbor is not land and not included in this water group, it is coast.
                     if (!landCells.Contains(neighbor) && !waterGroup.Contains(neighbor))
                     {
                         return false;

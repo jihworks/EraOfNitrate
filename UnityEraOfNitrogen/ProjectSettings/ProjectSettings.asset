@@ -826,7 +826,7 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
-    Standalone: USE_NEWTONSOFT_JSON
+    Standalone: INFRASTRUCTURE_USE_NEWTONSOFT_JSON;INFRASTRUCTURE_USE_NULL_STATES;INFRASTRUCTURE_USE_EXTERNAL_INIT
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:

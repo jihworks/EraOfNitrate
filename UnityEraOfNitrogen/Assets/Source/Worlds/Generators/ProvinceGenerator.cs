@@ -13,18 +13,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
+namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 {
     class ProvinceGenerator
     {
         readonly Settings _settings;
         readonly RandomStream _random;
-        readonly IReadOnlyList<MapCell> _landCells;
+        readonly IReadOnlyList<GeneratorCell> _landCells;
 
-        public List<MapCell>? ResultCityCells { get; private set; }
-        public List<MapProvince>? ResultProvinces { get; private set; }
+        public List<GeneratorCell>? ResultCityCells { get; private set; }
+        public List<GeneratorProvince>? ResultProvinces { get; private set; }
 
-        public ProvinceGenerator(Settings settings, RandomStream random, IReadOnlyList<MapCell> landCells)
+        public ProvinceGenerator(Settings settings, RandomStream random, IReadOnlyList<GeneratorCell> landCells)
         {
             _settings = settings;
             _random = random;
@@ -33,24 +33,24 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 
         public void Execute()
         {
-            List<MapCell> cityCells = GenerateCapitals(_random, _landCells, _settings.MaxProvinceCount, _settings.MinCityDistance);
+            List<GeneratorCell> cityCells = GenerateCapitals(_random, _landCells, _settings.MaxProvinceCount, _settings.MinCityDistance);
             if (cityCells.Count <= 0)
             {
                 return;
             }
 
-            List<MapProvince> provinces = GenerateProvinces(_landCells, cityCells);
+            List<GeneratorProvince> provinces = GenerateProvinces(_landCells, cityCells);
 
             ResultCityCells = cityCells;
             ResultProvinces = provinces;
         }
 
-        static List<MapCell> GenerateCapitals(RandomStream random, IReadOnlyList<MapCell> landCells, int maxProvinceCountSetting, int minCityDistanceSetting)
+        static List<GeneratorCell> GenerateCapitals(RandomStream random, IReadOnlyList<GeneratorCell> landCells, int maxProvinceCountSetting, int minCityDistanceSetting)
         {
-            List<MapCell> result = new();
+            List<GeneratorCell> result = new();
 
-            List<MapCell> candidates = new(landCells.Count);
-            // Except coastline cells.
+            List<GeneratorCell> candidates = new(landCells.Count);
+            // 해안선은 도시 후보에서 제외.
             candidates.AddRange(landCells.Where(l => !l.IsCoastlineLand));
 
             while (candidates.Count > 0 && result.Count < maxProvinceCountSetting)
@@ -59,7 +59,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 for (int retryCount = 0; retryCount < landCells.Count; retryCount++)
                 {
                     int pickedIndex = random.NextInt32(0, candidates.Count);
-                    MapCell pickedCell = candidates[pickedIndex];
+                    GeneratorCell pickedCell = candidates[pickedIndex];
                     candidates.RemoveAt(pickedIndex);
 
                     if (CheckDistance(pickedCell, result, minCityDistanceSetting))
@@ -79,7 +79,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             return result;
         }
 
-        static bool CheckDistance(MapCell cell, List<MapCell> cityCells, int minCityDistanceSetting)
+        static bool CheckDistance(GeneratorCell cell, List<GeneratorCell> cityCells, int minCityDistanceSetting)
         {
             if (cityCells.Contains(cell))
             {
@@ -96,13 +96,13 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             return true;
         }
 
-        static List<MapProvince> GenerateProvinces(IReadOnlyList<MapCell> landCells, IReadOnlyList<MapCell> cityCells)
+        static List<GeneratorProvince> GenerateProvinces(IReadOnlyList<GeneratorCell> landCells, IReadOnlyList<GeneratorCell> cityCells)
         {
-            List<MapProvince> result = new(cityCells.Count);
+            List<GeneratorProvince> result = new(cityCells.Count);
 
             foreach (var cityCell in cityCells)
             {
-                MapProvince province = new(cityCell);
+                GeneratorProvince province = new(cityCell);
 
                 province.Cells.Add(cityCell);
                 cityCell.Province = province;
@@ -110,11 +110,11 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 result.Add(province);
             }
 
-            // Except capitals. Already processed.
+            // 도시는 제외. 이미 처리됨.
             foreach (var expandTarget in landCells.Where(l => !cityCells.Contains(l)))
             {
-                // Propagate province by capitals.
-                MapProvince province = FindNearestCapital(expandTarget, cityCells).Province ?? throw new InvalidOperationException();
+                // 보로노이 알고리즘으로 전파.
+                GeneratorProvince province = FindNearestCapital(expandTarget, cityCells).Province ?? throw new InvalidOperationException();
 
                 expandTarget.Province = province;
                 province.Cells.Add(expandTarget);
@@ -123,12 +123,12 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             return result;
         }
 
-        static MapCell FindNearestCapital(MapCell cell, IReadOnlyList<MapCell> cityCells)
+        static GeneratorCell FindNearestCapital(GeneratorCell cell, IReadOnlyList<GeneratorCell> cityCells)
         {
             HexaCoord cellCoord = cell.Coord;
 
             int nearestDistance = int.MaxValue;
-            MapCell? nearestCity = null;
+            GeneratorCell? nearestCity = null;
 
             foreach (var city in cityCells)
             {

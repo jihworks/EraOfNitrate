@@ -11,37 +11,42 @@ using Jih.Unity.Infrastructure;
 using System;
 using System.Collections.Generic;
 
-namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
+namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 {
     public class WorldGenerator
     {
-        public MapGrid? Result { get; private set; }
+        public World? ResultWorld { get; private set; }
 
         public void Execute()
         {
             RandomStream random = new();
 
-            MapGrid mapGrid = new(128, 128);
+            GeneratorGrid grid = new(128, 128);
 
-            PangaeaGenerator pangaeaGenerator = new(PangaeaGenerator.Settings.Default, mapGrid, random);
+            PangaeaGenerator pangaeaGenerator = new(PangaeaGenerator.Settings.Default, grid, random);
+            pangaeaGenerator.Execute();
             if (pangaeaGenerator.ResultLandCells is null)
             {
                 throw new InvalidOperationException();
             }
 
-            List<MapCell> landCells = pangaeaGenerator.ResultLandCells;
+            List<GeneratorCell> landCells = pangaeaGenerator.ResultLandCells;
 
             ProvinceGenerator provinceGenerator = new(ProvinceGenerator.Settings.Default, random, landCells);
+            provinceGenerator.Execute();
             if (provinceGenerator.ResultCityCells is null ||
                 provinceGenerator.ResultProvinces is null)
             {
                 throw new InvalidOperationException();
             }
 
-            List<MapCell> cityCells = provinceGenerator.ResultCityCells;
-            List<MapProvince> provinces = provinceGenerator.ResultProvinces; 
+            List<GeneratorCell> cityCells = provinceGenerator.ResultCityCells;
+            List<GeneratorProvince> provinces = provinceGenerator.ResultProvinces; 
 
-            RoadNetworkGenerator roadNetworkGenerator = new(RoadNetworkGenerator.Settings.Default, mapGrid, cityCells);
+            RoadNetworkGenerator roadNetworkGenerator = new(RoadNetworkGenerator.Settings.Default, grid, cityCells);
+            roadNetworkGenerator.Execute();
+
+            ResultWorld = new World(grid, random.Seed, provinces);
         }
     }
 }
