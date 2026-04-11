@@ -9,10 +9,8 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Unity.Collections;
-using Unity.VectorGraphics;
 using UnityEngine;
 using UnityEngine.Rendering;
-using static Jih.Unity.Infrastructure.Geometries.MeshCollector;
 
 namespace Jih.Unity.Infrastructure.Geometries
 {
