@@ -14,6 +14,56 @@ namespace Jih.Unity.Infrastructure
     public static class EnumerableEx
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int GetNextCircularIndex(this int index, int itemCount)
+        {
+            if (itemCount < 0)
+            {
+                throw new ArgumentException("Item count must be greater than or equal to 0.");
+            }
+            if (index < 0 || itemCount <= index)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+            return checked(index + 1) % itemCount;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int GetPrevCircularIndex(this int index, int itemCount)
+        {
+            if (itemCount < 0)
+            {
+                throw new ArgumentException("Item count must be greater than or equal to 0.");
+            }
+            if (index < 0 || itemCount <= index)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+            return checked(index - 1 + itemCount) % itemCount;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Pair<T>(this List<T> collection, int currIndex, out T curr, out T next)
+        {
+            Pair(collection, currIndex, out _, out curr, out next);
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Pair<T>(this List<T> collection, int currIndex, out int nextIndex, out T curr, out T next)
+        {
+            Pair(collection, currIndex, out nextIndex);
+
+            curr = collection[currIndex];
+            next = collection[nextIndex];
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Pair<T>(this List<T> collection, int currIndex, out int nextIndex)
+        {
+            if (collection.Count < 2)
+            {
+                throw new ArgumentException("Cannot get pair because the collection item count is less than 2.");
+            }
+            nextIndex = currIndex.GetNextCircularIndex(collection.Count);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsValidIndex<T>(this List<T> collection, int index)
         {
             return 0 <= index && index < collection.Count;

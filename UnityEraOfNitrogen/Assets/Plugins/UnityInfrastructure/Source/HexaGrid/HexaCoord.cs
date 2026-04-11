@@ -96,6 +96,33 @@ namespace Jih.Unity.Infrastructure.HexaGrid
         }
 
         /// <param name="radius">1 means direct neighbors.</param>
+        public int GetRing(int radius, Span<HexaCoord> buffer)
+        {
+            if (radius <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(radius), "Radius cannot be 0 or negative.");
+            }
+
+            if (!buffer.IsEmpty)
+            {
+                HexaCoord coord = this + (HexaNeighborPosition.D270.GetOffset() * radius);
+
+                int t = 0;
+                for (int i = 0; i < 6; i++)
+                {
+                    HexaCoord offset = HexaPositionEx.GetOffset((HexaNeighborPosition)i);
+
+                    for (int j = 0; j < radius; j++)
+                    {
+                        buffer[t++] = coord;
+
+                        coord += offset;
+                    }
+                }
+            }
+            return 6 * radius;
+        }
+        /// <param name="radius">1 means direct neighbors.</param>
         public int GetRing(int radius, List<HexaCoord>? buffer)
         {
             if (radius <= 0)

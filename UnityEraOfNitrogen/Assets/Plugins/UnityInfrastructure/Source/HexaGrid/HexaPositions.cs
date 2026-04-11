@@ -40,6 +40,21 @@ namespace Jih.Unity.Infrastructure.HexaGrid
             return _neighborsOffsets[(int)position];
         }
 
+        /// <summary>
+        /// Get next CW position.
+        /// </summary>
+        public static HexaNeighborPosition Next(this HexaNeighborPosition position)
+        {
+            return (HexaNeighborPosition)((int)position).GetNextCircularIndex(6);
+        }
+        /// <summary>
+        /// Get next CCW position.
+        /// </summary>
+        public static HexaNeighborPosition Prev(this HexaNeighborPosition position)
+        {
+            return (HexaNeighborPosition)((int)position).GetPrevCircularIndex(6);
+        }
+
         public static HexaCoord GetOffset(this HexaDiagonalPosition position)
         {
             return _diagonalOffsets[(int)position];
