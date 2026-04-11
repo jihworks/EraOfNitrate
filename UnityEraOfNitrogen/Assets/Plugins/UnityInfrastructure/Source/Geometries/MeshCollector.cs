@@ -851,7 +851,7 @@ namespace Jih.Unity.Infrastructure.Geometries
 
             public void EditTexCoords(int startIndex, int count, EditDelegate<Vector2> edit)
             {
-                EditImpl("positions", _texCoords, startIndex, count, edit, null);
+                EditImpl("tex coords", _texCoords, startIndex, count, edit, null);
             }
 
             public void SecureTexCoordCapacity(int desiredCapacity)
