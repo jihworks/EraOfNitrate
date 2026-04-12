@@ -25,7 +25,7 @@ namespace Jih.Unity.Infrastructure.Collisions
 
         internal virtual void Reset()
         {
-            Bounds = new Bounds(Vector3.zero, Vector3.zero);
+            Bounds = BoundsEx.Empty;
             Depth = 0;
         }
     }
