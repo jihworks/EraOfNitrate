@@ -16,7 +16,7 @@ namespace Jih.Unity.Infrastructure.Collisions
 {
     public abstract class OctreeNode<T>
     {
-        public Bounds Bounds { get; internal set; } = new(Vector3.zero, Vector3.zero);
+        public Bounds Bounds { get; internal set; } = BoundsEx.Empty;
 
         /// <summary>
         /// Root is <c>0</c>, increases when go down the tree.
@@ -121,7 +121,6 @@ namespace Jih.Unity.Infrastructure.Collisions
             base.Reset();
         }
 
-        /// <param name="root">Octree to update.</param>
         /// <param name="itemSources">Items to hold by the <paramref name="root"/>.</param>
         /// <param name="sourcePartitioner">Partitioner for looping all of <paramref name="itemSources"/> with parallelism. If <c>null</c>, will use standard <c>for</c> loop.</param>
         /// <param name="sourcesTotalBounds">A bounds which must contains all of <paramref name="itemSources"/>.</param>
@@ -132,15 +131,13 @@ namespace Jih.Unity.Infrastructure.Collisions
         /// Throws when an item was not added to any octree.<br/>
         /// This may occur when the <paramref name="sourcesTotalBounds"/> does not contains all of <paramref name="itemSources"/>. Then, the item wasn't passed any <paramref name="isItemBoundsIntersects"/>.
         /// </exception>
-        public void Update(Octree<T> root, IReadOnlyList<T> itemSources, OrderablePartitioner<Tuple<int, int>>? sourcePartitioner, Bounds sourcesTotalBounds, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
+        public void Update(IReadOnlyList<T> itemSources, OrderablePartitioner<Tuple<int, int>>? sourcePartitioner, Bounds sourcesTotalBounds, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
         {
-            IReadOnlyList<OctreeLeafNode<T>> leaves = root.Leaves;
+            UpdateBounds(this, sourcesTotalBounds);
 
-            UpdateBounds(root, sourcesTotalBounds);
-
-            for (int i = 0; i < leaves.Count; i++)
+            for (int i = 0; i < LeavesInternal.Count; i++)
             {
-                OctreeLeafNode<T> leaf = leaves[i];
+                OctreeLeafNode<T> leaf = LeavesInternal[i];
 
                 leaf.Items.Clear();
             }
@@ -442,56 +439,56 @@ namespace Jih.Unity.Infrastructure.Collisions
             Vector3 epsilon = CollisionEx.BoundsEpsilon3;
 
             Vector3 min = source.min;
-            Bounds bounds = default;
-            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
+            Bounds bounds = BoundsEx.CreateMinMax(min, min + halfSize);
+            bounds = bounds.GetInflated(epsilon);
             octrees[0].Bounds = bounds;
 
             min = source.min;
             min.x += halfSize.x;
-            bounds = default;
-            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
+            bounds = BoundsEx.CreateMinMax(min, min + halfSize);
+            bounds = bounds.GetInflated(epsilon);
             octrees[1].Bounds = bounds;
 
             min = source.min;
             min.z += halfSize.z;
-            bounds = default;
-            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
+            bounds = BoundsEx.CreateMinMax(min, min + halfSize);
+            bounds = bounds.GetInflated(epsilon);
             octrees[2].Bounds = bounds;
 
             min = source.min;
             min.x += halfSize.x;
             min.z += halfSize.z;
-            bounds = default;
-            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
+            bounds = BoundsEx.CreateMinMax(min, min + halfSize);
+            bounds = bounds.GetInflated(epsilon);
             octrees[3].Bounds = bounds;
 
 
             min = source.min;
             min.y += halfSize.y;
-            bounds = default;
-            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
+            bounds = BoundsEx.CreateMinMax(min, min + halfSize);
+            bounds = bounds.GetInflated(epsilon);
             octrees[4].Bounds = bounds;
 
             min = source.min;
             min.y += halfSize.y;
             min.x += halfSize.x;
-            bounds = default;
-            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
+            bounds = BoundsEx.CreateMinMax(min, min + halfSize);
+            bounds = bounds.GetInflated(epsilon);
             octrees[5].Bounds = bounds;
 
             min = source.min;
             min.y += halfSize.y;
             min.z += halfSize.z;
-            bounds = default;
-            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
+            bounds = BoundsEx.CreateMinMax(min, min + halfSize);
+            bounds = bounds.GetInflated(epsilon);
             octrees[6].Bounds = bounds;
 
             min = source.min;
             min.y += halfSize.y;
             min.x += halfSize.x;
             min.z += halfSize.z;
-            bounds = default;
-            bounds.SetMinMax(min - epsilon, min + halfSize + epsilon);
+            bounds = BoundsEx.CreateMinMax(min, min + halfSize);
+            bounds = bounds.GetInflated(epsilon);
             octrees[7].Bounds = bounds;
         }
 

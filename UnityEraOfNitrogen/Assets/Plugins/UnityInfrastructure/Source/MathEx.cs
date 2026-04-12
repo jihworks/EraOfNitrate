@@ -758,5 +758,334 @@ namespace Jih.Unity.Infrastructure
             Clamp(ref cos, -1f, 1f);
             return Mathf.Acos(cos).ToDegrees();
         }
+
+        /// <summary>
+        /// Möller-Trumbore algorithm implementation.
+        /// </summary>
+        public static bool AreRayTriangleIntersect(Vector3 rayOrigin, Vector3 rayDirection, Vector3 v0, Vector3 v1, Vector3 v2, out float t)
+        {
+            t = 0f;
+
+            Vector3 edge1 = v1 - v0;
+            Vector3 edge2 = v2 - v0;
+            Vector3 h = Vector3.Cross(rayDirection, edge2);
+            float a = Vector3.Dot(edge1, h);
+
+            // Check if ray is parallel to the triangle
+            if (a > -0.0001f && a < 0.0001f)
+            {
+                return false;
+            }
+
+            float f = 1f / a;
+            Vector3 s = rayOrigin - v0;
+            float u = f * Vector3.Dot(s, h);
+
+            // Check if intersection is outside the triangle
+            if (u < 0f || u > 1f)
+            {
+                return false;
+            }
+
+            Vector3 q = Vector3.Cross(s, edge1);
+            float v = f * Vector3.Dot(rayDirection, q);
+
+            // Check if intersection is outside the triangle
+            if (v < 0f || u + v > 1f)
+            {
+                return false;
+            }
+
+            // Compute t to find out where the intersection point is on the line
+            t = f * Vector3.Dot(edge2, q);
+
+            // Check if the intersection is behind the ray origin
+            if (t > 0.0001f)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if two 3D triangles intersect.<br/>
+        /// Vertices should be in CW or CCW order consistently.
+        /// </summary>
+        public static bool AreTrianglesIntersect(Vector3 v0, Vector3 v1, Vector3 v2, Vector3 u0, Vector3 u1, Vector3 u2)
+        {
+            const float Epsilon = 0.0001f;
+
+            if (IsDegenerate(v0, v1, v2) || IsDegenerate(u0, u1, u2))
+            {
+                return false;
+            }
+
+            // Compute plane equation of triangle(v0,v1,v2) 
+            Vector3 e1 = v1 - v0;
+            Vector3 e2 = v2 - v0;
+            Vector3 n1 = Vector3.Cross(e1, e2);
+            float d1 = -Vector3.Dot(n1, v0);
+            // Plane equation 1: N1.x + d1 = 0
+
+            // Put u0,u1,u2 into plane equation 1 to compute signed distances to the plane
+            float du0 = Vector3.Dot(n1, u0) + d1;
+            float du1 = Vector3.Dot(n1, u1) + d1;
+            float du2 = Vector3.Dot(n1, u2) + d1;
+
+            // Coplanarity robustness check 
+            if (Mathf.Abs(du0) < Epsilon) du0 = 0f;
+            if (Mathf.Abs(du1) < Epsilon) du1 = 0f;
+            if (Mathf.Abs(du2) < Epsilon) du2 = 0f;
+
+            float du0du1 = du0 * du1;
+            float du0du2 = du0 * du2;
+
+            // Same sign on all of them + not equal 0 ? 
+            if (du0du1 > 0f && du0du2 > 0f)
+            {
+                return false; // No intersection occurs
+            }
+
+            // Compute plane of triangle (u0,u1,u2)
+            Vector3 e1_2 = u1 - u0;
+            Vector3 e2_2 = u2 - u0;
+            Vector3 n2 = Vector3.Cross(e1_2, e2_2);
+            float d2 = -Vector3.Dot(n2, u0);
+
+            // Plane equation 2: N2.x + d2 = 0 
+            // Put v0,v1,v2 into plane equation 2
+            float dv0 = Vector3.Dot(n2, v0) + d2;
+            float dv1 = Vector3.Dot(n2, v1) + d2;
+            float dv2 = Vector3.Dot(n2, v2) + d2;
+
+            if (Mathf.Abs(dv0) < Epsilon) dv0 = 0f;
+            if (Mathf.Abs(dv1) < Epsilon) dv1 = 0f;
+            if (Mathf.Abs(dv2) < Epsilon) dv2 = 0f;
+
+            float dv0dv1 = dv0 * dv1;
+            float dv0dv2 = dv0 * dv2;
+
+            // Same sign on all of them + not equal 0 ? 
+            if (dv0dv1 > 0f && dv0dv2 > 0f)
+            {
+                return false; // No intersection occurs
+            }
+
+            // Compute direction of intersection line 
+            Vector3 dd = Vector3.Cross(n1, n2);
+
+            // Compute and index to the largest component of D 
+            float max = Mathf.Abs(dd.x);
+            short index = 0;
+            float bb = Mathf.Abs(dd.y);
+            float cc = Mathf.Abs(dd.z);
+
+            if (bb > max) { max = bb; index = 1; }
+            if (cc > max) { index = 2; }
+
+            // This is the simplified projection onto L
+            float vp0 = v0[index];
+            float vp1 = v1[index];
+            float vp2 = v2[index];
+
+            float up0 = u0[index];
+            float up1 = u1[index];
+            float up2 = u2[index];
+
+            // Compute interval for triangle 1 
+            float a = 0, b = 0, c = 0, x0 = 0, x1 = 0;
+            if (ComputeIntervals(vp0, vp1, vp2, dv0, dv1, dv2, dv0dv1, dv0dv2, ref a, ref b, ref c, ref x0, ref x1))
+            {
+                return TriTriCoplanar(n1, v0, v1, v2, u0, u1, u2);
+            }
+
+            // Compute interval for triangle 2 
+            float d = 0, e = 0, f = 0, y0 = 0, y1 = 0;
+            if (ComputeIntervals(up0, up1, up2, du0, du1, du2, du0du1, du0du2, ref d, ref e, ref f, ref y0, ref y1))
+            {
+                return TriTriCoplanar(n1, v0, v1, v2, u0, u1, u2);
+            }
+
+            float xx = x0 * x1;
+            float yy = y0 * y1;
+            float xxyy = xx * yy;
+
+            float tmp1 = a * xxyy;
+            Vector2 isect1 = new(tmp1 + b * x1 * yy, tmp1 + c * x0 * yy);
+
+            float tmp2 = d * xxyy;
+            Vector2 isect2 = new(tmp2 + e * xx * y1, tmp2 + f * xx * y0);
+
+            Sort(ref isect1);
+            Sort(ref isect2);
+
+            return !(isect1.y < isect2.x || isect2.y < isect1.x);
+
+
+            static bool IsDegenerate(Vector3 a, Vector3 b, Vector3 c)
+            {
+                return (a - b).sqrMagnitude < Epsilon ||
+                       (b - c).sqrMagnitude < Epsilon ||
+                       (c - a).sqrMagnitude < Epsilon;
+            }
+            static void Sort(ref Vector2 v)
+            {
+                if (v.x > v.y)
+                {
+                    (v.y, v.x) = (v.x, v.y);
+                }
+            }
+            static bool EdgeEdgeTest(Vector3 v0, Vector3 v1, Vector3 u0, Vector3 u1, int i0, int i1)
+            {
+                float Ax = v1[i0] - v0[i0];
+                float Ay = v1[i1] - v0[i1];
+
+                float Bx = u0[i0] - u1[i0];
+                float By = u0[i1] - u1[i1];
+                float Cx = v0[i0] - u0[i0];
+                float Cy = v0[i1] - u0[i1];
+
+                float f = Ay * Bx - Ax * By;
+                float d = By * Cx - Bx * Cy;
+
+                if ((f > 0 && d >= 0 && d <= f) || (f < 0 && d <= 0 && d >= f))
+                {
+                    float e = Ax * Cy - Ay * Cx;
+                    if (f > 0)
+                    {
+                        if (e >= 0 && e <= f) return true;
+                    }
+                    else
+                    {
+                        if (e <= 0 && e >= f) return true;
+                    }
+                }
+
+                return false;
+            }
+            static bool EdgeAgainstTriEdges(Vector3 v0, Vector3 v1, Vector3 u0, Vector3 u1, Vector3 u2, short i0, short i1)
+            {
+                // Test edge u0,u1 against v0,v1
+                if (EdgeEdgeTest(v0, v1, u0, u1, i0, i1)) return true;
+
+                // Test edge u1,u2 against v0,v1 
+                if (EdgeEdgeTest(v0, v1, u1, u2, i0, i1)) return true;
+
+                // Test edge u2,u1 against v0,v1 
+                if (EdgeEdgeTest(v0, v1, u2, u0, i0, i1)) return true;
+
+                return false;
+            }
+            static bool PointInTri(Vector3 v0, Vector3 u0, Vector3 u1, Vector3 u2, short i0, short i1)
+            {
+                // Is T1 completely inside T2?
+                // Check if v0 is inside tri(u0,u1,u2)
+                float a = u1[i1] - u0[i1];
+                float b = -(u1[i0] - u0[i0]);
+                float c = -a * u0[i0] - b * u0[i1];
+                float d0 = a * v0[i0] + b * v0[i1] + c;
+
+                a = u2[i1] - u1[i1];
+                b = -(u2[i0] - u1[i0]);
+                c = -a * u1[i0] - b * u1[i1];
+                float d1 = a * v0[i0] + b * v0[i1] + c;
+
+                a = u0[i1] - u2[i1];
+                b = -(u0[i0] - u2[i0]);
+                c = -a * u2[i0] - b * u2[i1];
+                float d2 = a * v0[i0] + b * v0[i1] + c;
+
+                if (d0 * d1 > 0f)
+                {
+                    if (d0 * d2 > 0f) return true;
+                }
+
+                return false;
+            }
+            static bool TriTriCoplanar(Vector3 N, Vector3 v0, Vector3 v1, Vector3 v2, Vector3 u0, Vector3 u1, Vector3 u2)
+            {
+                short i0, i1;
+
+                // First project onto an axis-aligned plane, that maximizes the area
+                // of the triangles, compute indices: i0,i1. 
+                float absNx = Mathf.Abs(N.x);
+                float absNy = Mathf.Abs(N.y);
+                float absNz = Mathf.Abs(N.z);
+
+                if (absNx > absNy)
+                {
+                    if (absNx > absNz)
+                    {
+                        i0 = 1; // y
+                        i1 = 2; // z
+                    }
+                    else
+                    {
+                        i0 = 0; // x
+                        i1 = 1; // y
+                    }
+                }
+                else
+                {
+                    if (absNz > absNy)
+                    {
+                        i0 = 0; // x
+                        i1 = 1; // y
+                    }
+                    else
+                    {
+                        i0 = 0; // x
+                        i1 = 2; // z
+                    }
+                }
+
+                // Test all edges of triangle 1 against the edges of triangle 2 
+                if (EdgeAgainstTriEdges(v0, v1, u0, u1, u2, i0, i1)) return true;
+                if (EdgeAgainstTriEdges(v1, v2, u0, u1, u2, i0, i1)) return true;
+                if (EdgeAgainstTriEdges(v2, v0, u0, u1, u2, i0, i1)) return true;
+
+                // Finally, test if tri1 is totally contained in tri2 or vice versa 
+                if (PointInTri(v0, u0, u1, u2, i0, i1)) return true;
+                if (PointInTri(u0, v0, v1, v2, i0, i1)) return true;
+
+                return false;
+            }
+            static bool ComputeIntervals(float VV0, float VV1, float VV2,
+            float D0, float D1, float D2, float D0D1, float D0D2,
+            ref float A, ref float B, ref float C, ref float X0, ref float X1)
+            {
+                if (D0D1 > 0f)
+                {
+                    // Here we know that D0D2 <= 0.0 
+                    // that is D0, D1 are on the same side, D2 on the other or on the plane 
+                    A = VV2; B = (VV0 - VV2) * D2; C = (VV1 - VV2) * D2; X0 = D2 - D0; X1 = D2 - D1;
+                }
+                else if (D0D2 > 0f)
+                {
+                    // Here we know that d0d1 <= 0.0 
+                    A = VV1; B = (VV0 - VV1) * D1; C = (VV2 - VV1) * D1; X0 = D1 - D0; X1 = D1 - D2;
+                }
+                else if (D1 * D2 > 0f || D0 != 0f)
+                {
+                    // Here we know that d0d1 <= 0.0 or that D0 != 0.0 
+                    A = VV0; B = (VV1 - VV0) * D0; C = (VV2 - VV0) * D0; X0 = D0 - D1; X1 = D0 - D2;
+                }
+                else if (D1 != 0f)
+                {
+                    A = VV1; B = (VV0 - VV1) * D1; C = (VV2 - VV1) * D1; X0 = D1 - D0; X1 = D1 - D2;
+                }
+                else if (D2 != 0f)
+                {
+                    A = VV2; B = (VV0 - VV2) * D2; C = (VV1 - VV2) * D2; X0 = D2 - D0; X1 = D2 - D1;
+                }
+                else
+                {
+                    return true;
+                }
+
+                return false;
+            }
+        }
     }
 }

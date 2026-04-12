@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
+using static Codice.Client.Common.EventTracking.TrackFeatureUseEvent.Features.DesktopGUI.Filters;
 
 namespace Jih.Unity.Infrastructure.Geometries
 {
@@ -542,6 +543,86 @@ namespace Jih.Unity.Infrastructure.Geometries
                     {
                         SubMesh srcSubMesh = other._subMeshes[s];
                         List<int> srcIndices = srcSubMesh._indices;
+
+                        List<int> destIndices = destSubMesh._indices;
+                        destIndices.SecureCapacity(destIndices.Count + srcIndices.Count);
+
+                        for (int x = 0; x < srcIndices.Count; x++)
+                        {
+                            destIndices.Add(baseIndex + srcIndices[x]);
+                        }
+                        continue;
+                    }
+
+                    if (subMeshStrategy is AppendSubMeshStrategy.MatchedOnly)
+                    {
+                        break;
+                    }
+                    else if (subMeshStrategy is AppendSubMeshStrategy.ThrowException)
+                    {
+                        throw new InvalidOperationException($"Source mesh missing submesh {s}.");
+                    }
+                    else
+                    {
+                        throw new NotImplementedException();
+                    }
+                }
+            }
+        }
+
+        public void Append(SerializableMesh other, AppendSubMeshStrategy subMeshStrategy = AppendSubMeshStrategy.MatchedOnly, VertexData fallback = default)
+        {
+            int otherVertexCount = other.Vertices.Count;
+
+            int baseIndex = _positions.Count;
+            _positions.AddAll(other.Vertices);
+
+            _colors?.AddMultiple(fallback.Color, otherVertexCount);
+
+            for (int u = 0; u < MaxUVSetCount; u++)
+            {
+                UVSet? destUVSet = _uvSets[u];
+                if (destUVSet is null)
+                {
+                    continue;
+                }
+
+                List<Vector2> destTexCoords = destUVSet._texCoords;
+                destTexCoords.AddMultiple(fallback.GetUV(u), otherVertexCount);
+            }
+
+            _normals?.AddMultiple(fallback.Normal, otherVertexCount);
+
+            _tangents?.AddMultiple(fallback.Tangent, otherVertexCount);
+
+            _boneWeightLists?.AddMultiple(fallback.BoneWeightList ?? Array.Empty<BoneWeight1>(), otherVertexCount);
+
+            if (subMeshStrategy is AppendSubMeshStrategy.AddSubMeshes)
+            {
+                foreach (var srcSubMesh in other.SubMeshes)
+                {
+                    List<int> srcIndices = srcSubMesh.Indices;
+
+                    SubMesh destSubMesh = new(srcIndices.Count);
+                    _subMeshes.Add(destSubMesh);
+
+                    List<int> destIndices = destSubMesh._indices;
+                    for (int x = 0; x < srcIndices.Count; x++)
+                    {
+                        destIndices.Add(baseIndex + srcIndices[x]);
+                    }
+                }
+            }
+            else
+            {
+                for (int s = 0; s < _subMeshes.Count; s++)
+                {
+                    SubMesh destSubMesh = _subMeshes[s];
+
+                    if (s < other.SubMeshes.Count)
+                    {
+                        SerializableSubMesh srcSubMesh = other.SubMeshes[s];
+                        List<int> srcIndices = srcSubMesh.Indices;
 
                         List<int> destIndices = destSubMesh._indices;
                         destIndices.SecureCapacity(destIndices.Count + srcIndices.Count);

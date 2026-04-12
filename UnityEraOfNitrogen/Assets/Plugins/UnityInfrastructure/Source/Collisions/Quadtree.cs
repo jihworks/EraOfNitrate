@@ -121,7 +121,6 @@ namespace Jih.Unity.Infrastructure.Collisions
             base.Reset();
         }
 
-        /// <param name="root">Quadtree to update.</param>
         /// <param name="itemSources">Items to hold by the <paramref name="root"/>.</param>
         /// <param name="sourcePartitioner">Partitioner for looping all of <paramref name="itemSources"/> with parallelism. If <c>null</c>, will use standard <c>for</c> loop.</param>
         /// <param name="sourcesTotalBounds">A bounds which must contains all of <paramref name="itemSources"/>.</param>
@@ -132,15 +131,13 @@ namespace Jih.Unity.Infrastructure.Collisions
         /// Throws when an item was not added to any quadtree.<br/>
         /// This may occur when the <paramref name="sourcesTotalBounds"/> does not contains all of <paramref name="itemSources"/>. Then, the item wasn't passed any <paramref name="isItemBoundsIntersects"/>.
         /// </exception>
-        public void Update(Quadtree<T> root, IReadOnlyList<T> itemSources, OrderablePartitioner<Tuple<int, int>>? sourcePartitioner, Rect sourcesTotalBounds, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
+        public void Update(IReadOnlyList<T> itemSources, OrderablePartitioner<Tuple<int, int>>? sourcePartitioner, Rect sourcesTotalBounds, IsItemBoundsIntersectsDelegate isItemBoundsIntersects)
         {
-            IReadOnlyList<QuadtreeLeafNode<T>> leaves = root.Leaves;
+            UpdateBounds(this, sourcesTotalBounds);
 
-            UpdateBounds(root, sourcesTotalBounds);
-
-            for (int i = 0; i < leaves.Count; i++)
+            for (int i = 0; i < LeavesInternal.Count; i++)
             {
-                QuadtreeLeafNode<T> leaf = leaves[i];
+                QuadtreeLeafNode<T> leaf = LeavesInternal[i];
 
                 leaf.Items.Clear();
             }
