@@ -8,6 +8,7 @@
 #nullable enable
 
 using Jih.Unity.EraOfNitrogen.Worlds.Generators;
+using Jih.Unity.Infrastructure;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -41,14 +42,15 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         [JsonIgnore] public IReadOnlyList<Citizen> Citizens => _citizens;
 
         [JsonIgnore, MemberNotNullWhen(true,
-            nameof(World),
-            nameof(_adjacentProvinces), nameof(AdjacentProvinces))]
+            nameof(_world),
+            nameof(_adjacentProvinces))]
         public bool IsInitialized { get; private set; }
 
-        [JsonIgnore] public World? World { get; private set; }
+        [JsonIgnore] World? _world;
+        [JsonIgnore] public World World => _world.ThrowIfNull(nameof(World));
 
         [JsonIgnore] List<Province>? _adjacentProvinces;
-        [JsonIgnore] public IReadOnlyList<Province>? AdjacentProvinces => _adjacentProvinces;
+        [JsonIgnore] public IReadOnlyList<Province> AdjacentProvinces => _adjacentProvinces.ThrowIfNull(nameof(AdjacentProvinces));
 
         [JsonConstructor]
         private Province()
@@ -95,7 +97,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
                 return;
             }
 
-            World = world;
+            _world = world;
 
             _adjacentProvinces = new List<Province>(_adjacentProvinceIds.Count);
             _adjacentProvinces.AddRange(_adjacentProvinceIds.Select(id => provinceMap[id]));

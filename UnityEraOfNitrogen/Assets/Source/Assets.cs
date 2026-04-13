@@ -9,6 +9,7 @@
 
 using Jih.Unity.EraOfNitrogen.Worlds;
 using Jih.Unity.Infrastructure;
+using Jih.Unity.Infrastructure.Geometries;
 using Jih.Unity.Infrastructure.Runtime;
 using System;
 using UnityEngine;
@@ -39,6 +40,9 @@ namespace Jih.Unity.EraOfNitrogen
         [SerializeField] Material? _oceanMaterial;
         public Material OceanMaterial => _oceanMaterial.ThrowIfNull(nameof(OceanMaterial));
 
+        [Header("Doodad")]
+        [SerializeField] DoodadAssets[] _doodads = Array.Empty<DoodadAssets>();
+
         [Header("Road")]
         [SerializeField] RoadAssets[] _roads = Array.Empty<RoadAssets>();
 
@@ -61,6 +65,11 @@ namespace Jih.Unity.EraOfNitrogen
             return isNearOcean ? _nearOceanColor : _farOceanColor;
         }
 
+        public DoodadAssets GetDoodadAssets(DoodadType type)
+        {
+            return _doodads[type.ToIndex()];
+        }
+
         public RoadAssets GetRoadAssets(RoadLevel level)
         {
             return _roads[level.ToIndex()];
@@ -69,6 +78,27 @@ namespace Jih.Unity.EraOfNitrogen
         public Assets()
         {
             _instance = new SingletonStorage<Assets>(this);
+        }
+    }
+
+    [Serializable]
+    public class DoodadAssets
+    {
+        [SerializeField] Mesh?[] _meshes = Array.Empty<Mesh?>();
+        [SerializeField] SerializableMesh?[] _convexHulls = Array.Empty<SerializableMesh?>();
+
+        [SerializeField] Material? _material;
+        public Material Material => _material.ThrowIfNull(nameof(Material));
+
+        public Mesh GetMesh(int index, out SerializableMesh convexHull)
+        {
+            convexHull = _convexHulls[index].ThrowIfNull(nameof(GetMesh));
+            return _meshes[index].ThrowIfNull(nameof(GetMesh));
+        }
+
+        public int VariantToIndex(int variant)
+        {
+            return variant % _meshes.Length;
         }
     }
 

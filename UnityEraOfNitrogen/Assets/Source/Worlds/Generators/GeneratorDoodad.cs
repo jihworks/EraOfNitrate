@@ -7,32 +7,35 @@
 
 #nullable enable
 
-using System.Collections.Generic;
+using UnityEngine;
 
 namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 {
-    public class GeneratorProvince
+    public class GeneratorDoodad
     {
+        public DoodadType Type { get; }
         /// <summary>
-        /// 동일 월드 내 프로빈스들 사이에서 유일한 값.
+        /// 동일 타입 내에서 어떤 배리에이션을 사용할지를 의미.
         /// </summary>
-        public uint Id { get; }
+        /// <remarks>
+        /// 아무 양수값이나 할당. 모듈로 연산으로 존재하는 배리에이션 개수에 맞춰 사용.
+        /// </remarks>
+        public int Variant { get; }
 
-        public GeneratorCell CityCell { get; }
+        public Vector3 UnityLocation { get; }
         /// <summary>
-        /// <see cref="CityCell"/> 포함.
+        /// 육십분법 각도.
         /// </summary>
-        public List<GeneratorCell> Cells { get; } = new();
+        public float UnityRotationY { get; }
+        public float UnityScale { get; }
 
-        public List<GeneratorProvince> AdjacentProvinces { get; } = new();
-        public List<GeneratorProvince> ConnectedProvinces { get; } = new();
-
-        public Biome Biome { get; set; }
-
-        public GeneratorProvince(uint id, GeneratorCell cityCell)
+        public GeneratorDoodad(DoodadType type, int variant, Vector3 unityLocation, float unityRotationY, float unityScale)
         {
-            Id = id;
-            CityCell = cityCell;
+            Type = type;
+            Variant = variant;
+            UnityLocation = unityLocation;
+            UnityRotationY = unityRotationY;
+            UnityScale = unityScale;
         }
     }
 }

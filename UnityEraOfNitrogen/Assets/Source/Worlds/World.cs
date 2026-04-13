@@ -10,6 +10,7 @@
 using Jih.Unity.EraOfNitrogen.Worlds.Generators;
 using Jih.Unity.EraOfNitrogen.Worlds.Runtime;
 using Jih.Unity.Infrastructure;
+using Jih.Unity.Infrastructure.Collisions.Common3D;
 using Jih.Unity.Infrastructure.HexaGrid;
 using Newtonsoft.Json;
 using System;
@@ -35,13 +36,17 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         [JsonIgnore] public IReadOnlyList<Tile>? OceanTiles => _oceanTiles;
 
         [JsonIgnore, MemberNotNullWhen(true,
-            nameof(RandomStream),
-            nameof(MapGrid))]
+            nameof(_randomStream),
+            nameof(_mapGrid))]
         public bool IsInitialized { get; private set; }
 
-        [JsonIgnore] public RandomStream? RandomStream { get; private set; }
+        [JsonIgnore] RandomStream? _randomStream;
+        [JsonIgnore] public RandomStream RandomStream => _randomStream.ThrowIfNull(nameof(RandomStream));
 
-        [JsonIgnore] public MapGrid? MapGrid { get; private set; }
+        [JsonIgnore] MapGrid? _mapGrid;
+        [JsonIgnore] public MapGrid MapGrid => _mapGrid.ThrowIfNull(nameof(MapGrid));
+
+        [JsonIgnore] readonly CollisionWorld _collisionWorld = new(cellSize: 1f);
 
         [JsonConstructor]
         private World()
@@ -79,7 +84,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
                 return;
             }
 
-            RandomStream = new RandomStream()
+            _randomStream = new RandomStream()
             {
                 Position = RandomPosition,
             };
@@ -124,20 +129,20 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
                 tile = oceanTile;
             }
 
-            MapGrid = new MapGrid(Width, Height, tiles);
+            _mapGrid = new MapGrid(Width, Height, tiles);
 
             foreach (var province in _provinces)
             {
                 foreach (var provinceTile in province.Tiles)
                 {
-                    provinceTile.Initialize(this, province, MapGrid[(HexaIndex)(HexaCoord)provinceTile.Coord]);
+                    provinceTile.Initialize(this, province, _mapGrid[(HexaIndex)(HexaCoord)provinceTile.Coord]);
                 }
 
                 province.Initialize(this, provinceMap);
             }
             foreach (var oceanTile in _oceanTiles)
             {
-                oceanTile.Initialize(this, null, MapGrid[(HexaIndex)(HexaCoord)oceanTile.Coord]);
+                oceanTile.Initialize(this, null, _mapGrid[(HexaIndex)(HexaCoord)oceanTile.Coord]);
             }
 
             IsInitialized = true;

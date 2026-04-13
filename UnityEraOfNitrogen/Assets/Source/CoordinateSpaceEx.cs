@@ -14,9 +14,9 @@ namespace Jih.Unity.EraOfNitrogen
 {
     public static class CoordinateSpaceEx
     {
-        public static Vector3 ScreenToUnity(Vector2 screen)
+        public static Vector3 ScreenToUnity(Vector2 screen, float unityY = 0f)
         {
-            return new Vector3(screen.x, 0f, -screen.y);
+            return new Vector3(screen.x, unityY, -screen.y);
         }
         public static Vector2 UnityToScreen(Vector3 unity)
         {

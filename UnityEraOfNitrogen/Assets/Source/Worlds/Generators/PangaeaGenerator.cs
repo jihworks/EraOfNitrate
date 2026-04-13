@@ -54,6 +54,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
                     oceanCells.Add(cell);
                 }
             }
+
             foreach (var landCell in landCellsList)
             {
                 landCell.IsCoastlineLand = landCell.EnumerateNeighbors().Any(n => !n.IsLand);
@@ -70,19 +71,30 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
         static HashSet<GeneratorCell> GenerateLandmass(RandomStream random, GeneratorGrid mapGrid, double landRatioSetting)
         {
             HashSet<GeneratorCell> landCells = new();
+            Queue<GeneratorCell> expansionFrontier = new();
+
             int centerX = mapGrid.Width / 2;
             int centerY = mapGrid.Height / 2;
 
-            // 시작점 설정.
-            GeneratorCell? centerCell = mapGrid.GetCell(centerX, centerY);
-            if (centerCell is not null)
+            float noiseOffsetX = (float)(random.NextDouble() * 10000.0);
+            float noiseOffsetY = (float)(random.NextDouble() * 10000.0);
+
+            // 중앙 부근의 여러 시작점 생성.
+            int seedCount = 3 + random.NextInt32(0, 4);
+            for (int i = 0; i < seedCount; i++)
             {
-                landCells.Add(centerCell);
+                int offsetX = random.NextInt32(-mapGrid.Width / 6, mapGrid.Width / 6);
+                int offsetY = random.NextInt32(-mapGrid.Height / 6, mapGrid.Height / 6);
+
+                GeneratorCell? seedCell = mapGrid.GetCell(centerX + offsetX, centerY + offsetY);
+                if (seedCell is not null && !landCells.Contains(seedCell))
+                {
+                    landCells.Add(seedCell);
+                    expansionFrontier.Enqueue(seedCell);
+                }
             }
 
             int targetLandCells = (int)(mapGrid.Width * mapGrid.Height * landRatioSetting);
-            Queue<GeneratorCell> expansionFrontier = new();
-            expansionFrontier.Enqueue(centerCell!);
 
             while (landCells.Count < targetLandCells && expansionFrontier.Count > 0)
             {
@@ -95,7 +107,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
                         continue;
                     }
 
-                    float expandChance = CalculateExpandProbability(neighbor, landCells, mapGrid);
+                    float expandChance = CalculateExpandProbability(neighbor, landCells, mapGrid, noiseOffsetX, noiseOffsetY);
                     if (random.NextDouble() < expandChance)
                     {
                         landCells.Add(neighbor);
@@ -107,117 +119,85 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
             return landCells;
         }
 
-        static float CalculateExpandProbability(GeneratorCell cell, HashSet<GeneratorCell> landCells, GeneratorGrid mapGrid)
+        static float CalculateExpandProbability(GeneratorCell cell, HashSet<GeneratorCell> landCells, GeneratorGrid mapGrid, float noiseOffsetX, float noiseOffsetY)
         {
-            // 중앙에서 멀어질 수록 확률 감소.
-            Vector2Int centerIndex = new(mapGrid.Width / 2, mapGrid.Height / 2);
-            Vector2Int cellIndex = new(cell.Index.X, cell.Index.Y);
-            float distanceFromCenter = (cellIndex - cellIndex).magnitude;
+            Vector2 centerIndex = new(mapGrid.Width * 0.5f, mapGrid.Height * 0.5f);
+            Vector2 cellIndex = new(cell.Index.X, cell.Index.Y);
 
-            float maxDistance = new Vector2Int(mapGrid.Width, mapGrid.Height).magnitude * 0.5f;
-            float baseChance = 1f - (distanceFromCenter / maxDistance);
+            // X와 Y 거리를 각각 -1.0 ~ 1.0로 정규화.
+            float normalizedX = (cellIndex.x - centerIndex.x) / (mapGrid.Width * 0.5f);
+            float normalizedY = (cellIndex.y - centerIndex.y) / (mapGrid.Height * 0.5f);
+            float normalizedDistance = new Vector2(normalizedX, normalizedY).magnitude;
 
-            // 인접 셀이 땅이면 확률 증가.
+            // 맵 가장자리에 매우 근접하면 확장 차단.
+            if (normalizedDistance > 0.95f)
+            {
+                return 0f;
+            }
+
+            // 거리에 따른 확률 감소 적용. (중심 0, 가장자리 1 기준)
+            float baseChance = 1f - (normalizedDistance / 0.85f);
+
+            // 인접 셀 보너스.
             int adjacentLandCount = cell.EnumerateNeighbors().Count(adj => landCells.Contains(adj));
-            float adjacentBonus = adjacentLandCount * 0.1f;
+            float adjacentBonus = adjacentLandCount * 0.15f;
 
-            return Mathf.Clamp01(baseChance + adjacentBonus);
+            // 노이즈 보너스.
+            float noiseScale = 0.1f;
+            float noiseValue = Mathf.PerlinNoise(
+                cellIndex.x * noiseScale + noiseOffsetX,
+                cellIndex.y * noiseScale + noiseOffsetY
+            );
+            float noiseBonus = (noiseValue - 0.5f);
+
+            return Mathf.Clamp01(baseChance + adjacentBonus + noiseBonus);
         }
 
         static void RemoveInlandWater(HashSet<GeneratorCell> landCells, GeneratorGrid mapGrid)
         {
-            HashSet<GeneratorCell> waterCells = new(mapGrid.EnumerateCells().Where(c => !landCells.Contains(c)));
-            HashSet<GeneratorCell> processedWater = new();
+            HashSet<GeneratorCell> globalOcean = new();
+            Queue<GeneratorCell> queue = new();
 
-            while (waterCells.Count > 0)
+            foreach (var cell in mapGrid.EnumerateCells())
             {
-                HashSet<GeneratorCell> waterGroup = FindConnectedWaterCells(waterCells.First(), waterCells);
-
-                bool isInland = IsWaterGroupInland(waterGroup, landCells);
-
-                // 내륙 호수인 경우, 땅으로 전환.
-                if (isInland)
+                if (!landCells.Contains(cell))
                 {
-                    foreach (var cell in waterGroup)
+                    if (cell.EnumerateNeighbors().Count() < 6)
                     {
-                        landCells.Add(cell);
-                        waterCells.Remove(cell);
-                    }
-                }
-                else
-                {
-                    foreach (var cell in waterGroup)
-                    {
-                        waterCells.Remove(cell);
-                        processedWater.Add(cell);
+                        queue.Enqueue(cell);
+                        globalOcean.Add(cell);
                     }
                 }
             }
-        }
 
-        static HashSet<GeneratorCell> FindConnectedWaterCells(GeneratorCell start, HashSet<GeneratorCell> waterCells)
-        {
-            HashSet<GeneratorCell> connected = new();
-            Queue<GeneratorCell> queue = new();
-
-            queue.Enqueue(start);
-            connected.Add(start);
-
+            // Flood Fill.
             while (queue.Count > 0)
             {
                 GeneratorCell current = queue.Dequeue();
 
                 foreach (var neighbor in current.EnumerateNeighbors())
                 {
-                    if (waterCells.Contains(neighbor) && !connected.Contains(neighbor))
+                    if (!landCells.Contains(neighbor) && !globalOcean.Contains(neighbor))
                     {
-                        connected.Add(neighbor);
+                        globalOcean.Add(neighbor);
                         queue.Enqueue(neighbor);
                     }
                 }
             }
 
-            return connected;
-        }
-
-        static bool IsWaterGroupInland(HashSet<GeneratorCell> waterGroup, HashSet<GeneratorCell> landCells)
-        {
-            foreach (var waterCell in waterGroup)
+            List<GeneratorCell> cellsToFill = new();
+            foreach (var cell in mapGrid.EnumerateCells())
             {
-                // 보더 셀인 경우 바다.
-                if (waterCell.EnumerateNeighbors().Count() < 6)
+                if (!landCells.Contains(cell) && !globalOcean.Contains(cell))
                 {
-                    return false;
+                    cellsToFill.Add(cell);
                 }
             }
 
-            // 워터 그룹에서 보더 셀 수집.
-            HashSet<GeneratorCell> borderCells = new();
-            foreach (var waterCell in waterGroup)
+            foreach (var cell in cellsToFill)
             {
-                foreach (var neighbor in waterCell.EnumerateNeighbors())
-                {
-                    if (!waterGroup.Contains(neighbor))
-                    {
-                        borderCells.Add(waterCell);
-                        break;
-                    }
-                }
+                landCells.Add(cell);
             }
-
-            // 모든 워터 그룹의 보더 셀이 땅에 연접해 있다면 내륙 호수.
-            foreach (var borderCell in borderCells)
-            {
-                foreach (var neighbor in borderCell.EnumerateNeighbors())
-                {
-                    if (!landCells.Contains(neighbor) && !waterGroup.Contains(neighbor))
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            return true;
         }
 
         public struct Settings

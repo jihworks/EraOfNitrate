@@ -9,8 +9,10 @@
 
 using Jih.Unity.EraOfNitrogen.Worlds.Generators;
 using Jih.Unity.EraOfNitrogen.Worlds.Runtime;
+using Jih.Unity.Infrastructure;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Jih.Unity.EraOfNitrogen.Worlds
@@ -37,21 +39,28 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         /// </summary>
         [JsonProperty] public bool HasRoad { get; private set; }
 
+        [JsonProperty(nameof(Doodads))] readonly List<Doodad> _doodads;
+        [JsonIgnore] public IReadOnlyList<Doodad> Doodads => _doodads;
+
         [JsonIgnore, MemberNotNullWhen(true,
-            nameof(World),
-            nameof(Cell))]
+            nameof(_world),
+            nameof(_cell))]
         public bool IsInitialized { get; private set; }
 
-        [JsonIgnore] public World? World { get; private set; }
+        [JsonIgnore] World? _world;
+        [JsonIgnore] public World World => _world.ThrowIfNull(nameof(World));
         /// <summary>
         /// 바다인 경우 <c>null</c>.
         /// </summary>
         [JsonIgnore] public Province? Province { get; private set; }
-        [JsonIgnore] public MapCell? Cell { get; private set; }
+
+        [JsonIgnore] MapCell? _cell;
+        [JsonIgnore] public MapCell Cell => _cell.ThrowIfNull(nameof(Cell));
 
         [JsonConstructor]
         private Tile()
         {
+            _doodads = null!;
         }
 
         public Tile(GeneratorCell cell)
@@ -61,6 +70,12 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
             IsCoastlineLand = cell.IsCoastlineLand;
             IsNearOcean = cell.IsNearOcean;
             HasRoad = cell.HasRoad;
+
+            _doodads = new List<Doodad>(cell.Doodads.Count);
+            foreach (var doodad in cell.Doodads)
+            {
+                _doodads.Add(new Doodad(doodad));
+            }
         }
 
         public void Initialize(World world, Province? province, MapCell cell)
@@ -70,7 +85,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
                 return;
             }
 
-            World = world;
+            _world = world;
 
             if (province is not null && !IsLand)
             {
@@ -78,7 +93,12 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
             }
             Province = province;
 
-            Cell = cell;
+            _cell = cell;
+
+            foreach (var doodad in Doodads)
+            {
+                doodad.Initialize(this);
+            }
 
             IsInitialized = true;
         }

@@ -35,6 +35,8 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 
         public GeneratorProvince? Province { get; set; }
 
+        public List<GeneratorDoodad> Doodads { get; } = new();
+
         public GeneratorCell(HexaMap map, HexaIndex index, HexaCoord coord) : base(map, index, coord)
         {
         }

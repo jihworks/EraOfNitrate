@@ -44,25 +44,28 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
                 return;
             }
 
-            HashSet<ProvincePair> connected = new(provinces.Sum(p => p.AdjacentProvinces.Count));
+            HashSet<ProvincePair> processed = new(provinces.Sum(p => p.AdjacentProvinces.Count));
 
+            Context context = new();
             HexaPathResult result = new();
             foreach (var province in provinces)
             {
                 foreach (var adjacent in province.AdjacentProvinces)
                 {
                     ProvincePair pair = new(province.Id, adjacent.Id);
-                    if (connected.Contains(pair))
+                    if (!processed.Add(pair))
                     {
                         continue;
                     }
 
+                    context.Reset(province, adjacent);
+
                     GeneratorCell start = province.CityCell, goal = adjacent.CityCell;
-                    mapGrid.FindPath(start, goal, result, Access, Cost, Heuristic);
+                    mapGrid.FindPath(start, goal, result, context.Access, context.Cost, context.Heuristic);
 
                     if (!result.IsSucceed)
                     {
-                        throw new InvalidOperationException($"{start.Coord}로부터 {goal.Coord}까지 도로를 연결하지 못함.");
+                        continue;
                     }
 
                     foreach (var roadCell in result.ResultPath.Cast<GeneratorCell>())
@@ -70,7 +73,8 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
                         roadCell.HasRoad = true;
                     }
 
-                    connected.Add(pair);
+                    province.ConnectedProvinces.Add(adjacent);
+                    adjacent.ConnectedProvinces.Add(province);
                 }
             }
         }
@@ -101,54 +105,67 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
             }
         }
 
-        static IEnumerable<HexaCell> Access(HexaCell current)
+        class Context
         {
-            return current.EnumerateNeighbors().Cast<GeneratorCell>().Where(c => c.IsLand);
-        }
+            public GeneratorProvince? Province0 { get; private set; }
+            public GeneratorProvince? Province1 { get; private set; }
 
-        static int Cost(HexaCell current, HexaCell next)
-        {
-            GeneratorCell nextCell = (GeneratorCell)next;
-
-            int cost = 200; // 기본 코스트.
-            if (nextCell.HasRoad)
+            public void Reset(GeneratorProvince province0, GeneratorProvince province1)
             {
-                cost -= 100;
+                Province0 = province0;
+                Province1 = province1;
             }
 
-            GeneratorGrid grid = (GeneratorGrid)next.Map;
-            HexaCoord nextCoord = next.Coord;
-
-            static void ApplyNeighborRoads(GeneratorGrid grid, HexaCoord centerCoord, ref int targetCost, int ring, int deltaScore)
+            public IEnumerable<HexaCell> Access(HexaCell current)
             {
-                int bufferLength = centerCoord.GetRing(ring, Span<HexaCoord>.Empty);
+                return current.EnumerateNeighbors()
+                    .Cast<GeneratorCell>()
+                    .Where(c => c.IsLand && (c.Province == Province0 || c.Province == Province1));
+            }
 
-                Span<HexaCoord> neighborCoords = stackalloc HexaCoord[bufferLength];
-                centerCoord.GetRing(ring, neighborCoords);
+            public int Cost(HexaCell /*current*/_0, HexaCell next)
+            {
+                GeneratorCell nextCell = (GeneratorCell)next;
 
-                for (int i = 0; i < bufferLength; i++)
+                int cost = 200; // 기본 코스트.
+                if (nextCell.HasRoad)
                 {
-                    GeneratorCell? neighbor = grid.GetCell(neighborCoords[i]);
-                    if (neighbor is null ||
-                        !neighbor.HasRoad)
-                    {
-                        continue;
-                    }
-                    targetCost += deltaScore;
+                    cost -= 100;
                 }
+
+                //GeneratorGrid grid = (GeneratorGrid)next.Map;
+                //HexaCoord nextCoord = next.Coord;
+
+                //static void ApplyNeighborRoads(GeneratorGrid grid, HexaCoord centerCoord, ref int targetCost, int ring, int deltaScore)
+                //{
+                //    int bufferLength = centerCoord.GetRing(ring, Span<HexaCoord>.Empty);
+
+                //    Span<HexaCoord> neighborCoords = stackalloc HexaCoord[bufferLength];
+                //    centerCoord.GetRing(ring, neighborCoords);
+
+                //    for (int i = 0; i < bufferLength; i++)
+                //    {
+                //        GeneratorCell? neighbor = grid.GetCell(neighborCoords[i]);
+                //        if (neighbor is null ||
+                //            !neighbor.HasRoad)
+                //        {
+                //            continue;
+                //        }
+                //        targetCost += deltaScore;
+                //    }
+                //}
+                //ApplyNeighborRoads(grid, nextCoord, ref cost, 1, -20);
+                //ApplyNeighborRoads(grid, nextCoord, ref cost, 2, -5);
+
+                return cost;
             }
-            ApplyNeighborRoads(grid, nextCoord, ref cost, 1, -20);
-            ApplyNeighborRoads(grid, nextCoord, ref cost, 2, -5);
 
-            return cost;
-        }
-
-        static int Heuristic(HexaCell goal, HexaCell next)
-        {
-            return 0;
-            //int distance = HexaCoord.Distance(goal.Coord, next.Coord);
-            //distance *= 20;
-            //return distance;
+            public int Heuristic(HexaCell goal, HexaCell next)
+            {
+                int distance = HexaCoord.Distance(goal.Coord, next.Coord);
+                distance *= 20;
+                return distance;
+            }
         }
 
         public struct Settings

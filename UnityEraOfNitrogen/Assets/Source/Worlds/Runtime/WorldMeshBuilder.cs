@@ -280,6 +280,46 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             return result;
         }
 
+        public List<DoodadGroup> BuildDoodads()
+        {
+            if (!World.IsInitialized)
+            {
+                throw new InvalidOperationException("초기화되지 않은 월드로부터 두대드를 빌드할 수 없음.");
+            }
+
+            int VariantToIndex(DoodadType type, int variant)
+            {
+                DoodadAssets doodadAssets = Assets.GetDoodadAssets(type);
+                return doodadAssets.VariantToIndex(variant);
+            }
+
+            List<DoodadGroup> result = new(World.Provinces.Count * 3);
+
+            foreach (var provinceGroup in World.Provinces.SelectMany(
+                p => p.Tiles.SelectMany(
+                    t => t.Doodads.Select(
+                        d => (Province: p, Tile: t, Doodad: d, d.Type, Index: VariantToIndex(d.Type, d.Variant)))))
+                .GroupBy(x => x.Province))
+            {
+                foreach (var typeGroup in provinceGroup.GroupBy(x => x.Type))
+                {
+                    foreach (var indexGroup in typeGroup.GroupBy(x => x.Index))
+                    {
+                        List<Doodad> doodads = indexGroup.Select(x => x.Doodad).ToList();
+
+                        result.Add(new DoodadGroup(provinceGroup.Key, typeGroup.Key, indexGroup.Key, doodads));
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        public void Spawn(IReadOnlyList<DoodadGroup> doodadGroups)
+        {
+
+        }
+
         public readonly struct LandChunk
         {
             public readonly int ChunkX, ChunkY;
@@ -315,6 +355,22 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 Branch = branch;
                 MeshBranch = meshBranch;
                 CwShiftCount = cwShiftCount;
+            }
+        }
+
+        public readonly struct DoodadGroup
+        {
+            public readonly Province Province;
+            public readonly DoodadType Type;
+            public readonly int Index;
+            public readonly IReadOnlyList<Doodad> Doodads;
+
+            public DoodadGroup(Province province, DoodadType type, int index, IReadOnlyList<Doodad> doodads)
+            {
+                Province = province;
+                Type = type;
+                Index = index;
+                Doodads = doodads;
             }
         }
 

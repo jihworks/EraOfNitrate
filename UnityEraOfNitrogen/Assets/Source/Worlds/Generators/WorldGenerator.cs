@@ -65,6 +65,12 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
             UnityEngine.Debug.Log($"바이옴 생성: {stopwatch.ElapsedMilliseconds}ms");
             stopwatch.Restart();
 
+            DoodadGenerator doodadGenerator = new(random, provinces);
+            doodadGenerator.Execute();
+            stopwatch.Stop();
+            UnityEngine.Debug.Log($"두대드 생성: {stopwatch.ElapsedMilliseconds}ms");
+            stopwatch.Restart();
+
             RoadNetworkGenerator roadNetworkGenerator = new(RoadNetworkGenerator.Settings.Default, grid, provinces);
             roadNetworkGenerator.Execute();
             stopwatch.Stop();

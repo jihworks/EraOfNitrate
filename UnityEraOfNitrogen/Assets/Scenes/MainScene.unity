@@ -756,6 +756,43 @@ MonoBehaviour:
     rgba: 4285745708
   _landMaterial: {fileID: 2100000, guid: 5677be287c9e01f448af08d7c7895a9c, type: 2}
   _oceanMaterial: {fileID: 2100000, guid: 875613e64b374b44aa4b6223fa622eda, type: 2}
+  _doodads:
+  - _meshes:
+    - {fileID: -2202735703270236118, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    - {fileID: -6883745688369949586, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    - {fileID: 5435109238073593928, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    _convexHulls:
+    - {fileID: 11400000, guid: 3267eb0dfa32b7041aaa72bef4c53a4a, type: 2}
+    - {fileID: 11400000, guid: 4d1c991ef594c2544ad04ebae85fea4a, type: 2}
+    - {fileID: 11400000, guid: 9816349e2af021543b491e02d0d7b667, type: 2}
+    _material: {fileID: 2100000, guid: d7620ddc73c3e8d47bd79adddb1d98d3, type: 2}
+  - _meshes:
+    - {fileID: 3106487925371216580, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    - {fileID: 8662610069560990937, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    - {fileID: 1461382026350766980, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    _convexHulls:
+    - {fileID: 11400000, guid: c773f33505f714043bbecd1f1c958447, type: 2}
+    - {fileID: 11400000, guid: 72a57b0f7a7977f44a8add1a98f95a01, type: 2}
+    - {fileID: 11400000, guid: 6dffb319b948cbd47beb0ad14e89d9f5, type: 2}
+    _material: {fileID: 2100000, guid: d7620ddc73c3e8d47bd79adddb1d98d3, type: 2}
+  - _meshes:
+    - {fileID: -9120398639197886631, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    - {fileID: 66666039226128157, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    - {fileID: -7513329980722833240, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    _convexHulls:
+    - {fileID: 11400000, guid: 01370b72157ac5a43ae36bcfd11ccde8, type: 2}
+    - {fileID: 11400000, guid: 464db8774d71f46448d9c0dad2afa433, type: 2}
+    - {fileID: 11400000, guid: 2ef4bc95f83ac4e418c6ebddab70c01f, type: 2}
+    _material: {fileID: 2100000, guid: d7620ddc73c3e8d47bd79adddb1d98d3, type: 2}
+  - _meshes:
+    - {fileID: 6801464055610889559, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    - {fileID: -4046010982470378273, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    - {fileID: -7472319881884904969, guid: cd36610a38626084e81341f74124caf6, type: 3}
+    _convexHulls:
+    - {fileID: 11400000, guid: dcf6436cacd828141ac600e77ff1b145, type: 2}
+    - {fileID: 11400000, guid: 17c2852b5acfca1438e376b2e4a3fea9, type: 2}
+    - {fileID: 11400000, guid: d83b57c6900a16747a866c42fed18c2c, type: 2}
+    _material: {fileID: 2100000, guid: d7620ddc73c3e8d47bd79adddb1d98d3, type: 2}
   _roads:
   - _meshBaseZRotation: -60
     _material: {fileID: 2100000, guid: bb8a7a56db5eb4d40952b434926de60b, type: 2}
