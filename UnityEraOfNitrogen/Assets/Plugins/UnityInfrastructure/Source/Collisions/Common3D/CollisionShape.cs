@@ -80,7 +80,7 @@ namespace Jih.Unity.Infrastructure.Collisions.Common3D
                 return;
             }
             UpdateBounds_Impl(ref _isLocalBoundsDirty, ref _isWorldTransformDirty);
-            if (!_isLocalBoundsDirty || !_isWorldTransformDirty)
+            if (_isLocalBoundsDirty || _isWorldTransformDirty)
             {
                 throw new InvalidOperationException($"Derived {nameof(CollisionShape)} {GetType().FullName} must clear dirty flags after bounds updated.");
             }
