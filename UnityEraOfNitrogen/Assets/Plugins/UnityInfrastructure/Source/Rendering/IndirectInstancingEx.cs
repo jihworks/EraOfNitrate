@@ -11,6 +11,6 @@ namespace Jih.Unity.Infrastructure.Rendering
 {
     public static class IndirectInstancingEx
     {
-        public static readonly int InstanceTransformsBufferId = Shader.PropertyToID("_InstanceTransformsBuffer");
+        public static readonly int InstanceTransformsId = Shader.PropertyToID("_InstanceTransforms");
     }
 }

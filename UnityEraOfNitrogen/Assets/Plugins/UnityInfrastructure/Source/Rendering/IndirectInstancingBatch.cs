@@ -150,7 +150,7 @@ namespace Jih.Unity.Infrastructure.Rendering
 
             if (transformsAllocated)
             {
-                _materialPropertyBlock.SetBuffer(IndirectInstancingEx.InstanceTransformsBufferId, _transformsBuffer);
+                _materialPropertyBlock.SetBuffer(IndirectInstancingEx.InstanceTransformsId, _transformsBuffer);
             }
 
             if (InstanceTransforms.IsDirty || transformsAllocated)

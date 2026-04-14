@@ -39,7 +39,7 @@ namespace Jih.Unity.Infrastructure.Editor
             _dummyBuffer.SetData(new Matrix4x4[] { Matrix4x4.identity, });
 
             // Place the dummy buffer as a global buffer to the ID.
-            Shader.SetGlobalBuffer(IndirectInstancingEx.InstanceTransformsBufferId, _dummyBuffer);
+            Shader.SetGlobalBuffer(IndirectInstancingEx.InstanceTransformsId, _dummyBuffer);
         }
 
         static void ReleaseBuffer()
