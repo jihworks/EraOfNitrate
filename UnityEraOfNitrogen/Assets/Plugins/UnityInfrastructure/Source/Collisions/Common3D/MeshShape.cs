@@ -5,6 +5,7 @@
 
 #nullable enable
 
+using Jih.Unity.Infrastructure.Geometries;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -42,8 +43,19 @@ namespace Jih.Unity.Infrastructure.Collisions.Common3D
             Triangles.AddRange(meshCollision.Triangles);
         }
 
+        public void Append(MeshCollector meshCollector)
+        {
+            foreach (var subMesh in meshCollector.SubMeshes)
+            {
+                Append(meshCollector.Positions, subMesh.Indices);
+            }
+        }
+
         public void Append(IReadOnlyList<Vector3> vertices, IReadOnlyList<int> triangles)
         {
+            List<CollisionTriangle> directList = Triangles.InnerList;
+            directList.SecureCapacity(directList.Count + triangles.Count / 3);
+
             for (int i = 0; i < triangles.Count; i += 3)
             {
                 int i0 = triangles[i];
@@ -666,6 +678,8 @@ namespace Jih.Unity.Infrastructure.Collisions.Common3D
             internal bool IsDirty { get; set; }
 
             public int Count => InnerList.Count;
+
+            public int Capacity { get => InnerList.Capacity; set => InnerList.Capacity = value; }
 
             bool ICollection<CollisionTriangle>.IsReadOnly => ((ICollection<CollisionTriangle>)InnerList).IsReadOnly;
 

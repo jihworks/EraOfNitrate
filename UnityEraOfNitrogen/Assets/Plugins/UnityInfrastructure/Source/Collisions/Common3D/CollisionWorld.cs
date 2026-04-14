@@ -152,7 +152,7 @@ namespace Jih.Unity.Infrastructure.Collisions.Common3D
             _cellsMap.Clear();
         }
 
-        public bool Collect(CollisionShape collision, List<ICollision> buffer, uint collisionChannelMask = CollisionChannelEx.All, HashSet<ICollision>? ignoredCollisions = null)
+        public int Collect(CollisionShape collision, List<ICollision> buffer, uint collisionChannelMask = CollisionChannelEx.All, HashSet<ICollision>? ignoredCollisions = null)
         {
             collision.UpdateBounds();
             Flush();
@@ -160,7 +160,7 @@ namespace Jih.Unity.Infrastructure.Collisions.Common3D
             HashSet<ICollision> processed = _collisionMapPool.Get();
             try
             {
-                bool foundAny = false;
+                int count = 0;
 
                 foreach (var cellPos in EnumerateCellsForBounds(collision.WorldBounds))
                 {
@@ -199,12 +199,12 @@ namespace Jih.Unity.Infrastructure.Collisions.Common3D
                         if (otherCollision.IntersectsWith(collision))
                         {
                             buffer.Add(otherCollision);
-                            foundAny = true;
+                            count++;
                         }
                     }
                 }
 
-                return foundAny;
+                return count;
             }
             finally
             {

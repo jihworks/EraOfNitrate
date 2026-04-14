@@ -276,6 +276,8 @@ namespace Jih.Unity.Infrastructure.Rendering
 
             public int Count => InnerList.Count;
 
+            public int Capacity { get => InnerList.Capacity; set => InnerList.Capacity = value; }
+
             bool ICollection<Matrix4x4>.IsReadOnly => ((ICollection<Matrix4x4>)InnerList).IsReadOnly;
 
             public TransformsCollection(int capacity)

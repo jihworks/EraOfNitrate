@@ -38,7 +38,7 @@ namespace Jih.Unity.Infrastructure.Geometries
             ThrowException,
         }
 
-        public MeshCollector Load(Mesh mesh, AdditionalAttributes additionalAttributes, LoadImperfectStrategy imperfectStrategy = LoadImperfectStrategy.RemoveAndUnsetFlag, VertexData fallback = default, int subMeshLod = 0)
+        public static MeshCollector Load(Mesh mesh, AdditionalAttributes additionalAttributes, LoadImperfectStrategy imperfectStrategy = LoadImperfectStrategy.RemoveAndUnsetFlag, VertexData fallback = default, int subMeshLod = 0)
         {
             if (!mesh.isReadable)
             {
@@ -252,6 +252,8 @@ namespace Jih.Unity.Infrastructure.Geometries
                 // Need not to check topology.
 
                 SubMesh subMesh = new(descriptor.indexCount);
+                subMeshes.Add(subMesh);
+
                 mesh.GetIndices(subMesh._indices, s, subMeshLod, applyBaseVertex: true);
             }
 
