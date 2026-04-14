@@ -13,15 +13,15 @@ using System.Collections.Generic;
 
 namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 {
-    public class WorldGenerator
+    public class MapGenerator
     {
-        public World? ResultWorld { get; private set; }
+        public Map? ResultMap { get; private set; }
 
         public void Execute(int? seed = null)
         {
             RandomStream random = new(seed ?? Environment.TickCount);
 
-            UnityEngine.Debug.Log("== 월드 생성 시작");
+            UnityEngine.Debug.Log("== 맵 생성 시작");
 
             System.Diagnostics.Stopwatch stopwatch = new();
             stopwatch.Start();
@@ -56,7 +56,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
             UnityEngine.Debug.Log($"프로빈스 생성: {stopwatch.ElapsedMilliseconds}ms");
             stopwatch.Restart();
 
-            List<GeneratorCell> cityCells = provinceGenerator.ResultCityCells;
+            //List<GeneratorCell> cityCells = provinceGenerator.ResultCityCells;
             List<GeneratorProvince> provinces = provinceGenerator.ResultProvinces;
 
             BiomeGenerator biomeGenerator = new(BiomeGenerator.Settings.Default, random, provinces);
@@ -77,11 +77,11 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
             UnityEngine.Debug.Log($"도로 생성: {stopwatch.ElapsedMilliseconds}ms");
             stopwatch.Restart();
 
-            ResultWorld = new World(grid, random.Seed, provinces, oceanCells);
+            ResultMap = new Map(grid, random.Seed, provinces, oceanCells);
             stopwatch.Stop();
-            UnityEngine.Debug.Log($"월드 생성: {stopwatch.ElapsedMilliseconds}ms");
+            UnityEngine.Debug.Log($"인스턴스 생성: {stopwatch.ElapsedMilliseconds}ms");
 
-            UnityEngine.Debug.Log("== 월드 생성 완료");
+            UnityEngine.Debug.Log("== 맵 생성 완료");
         }
     }
 }

@@ -32,7 +32,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             World = world;
             Assets = assets != null ? assets : Assets.Instance;
 
-            MapGrid grid = World.MapGrid;
+            WorldGrid grid = World.MapGrid;
             _chunkCountX = grid.Width.CeilDivision(ChunkSize);
             _chunkCountY = grid.Height.CeilDivision(ChunkSize);
         }
@@ -44,16 +44,16 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 throw new InvalidOperationException("초기화되지 않은 월드로부터 메시를 빌드할 수 없음.");
             }
 
-            MapGrid grid = World.MapGrid;
+            WorldGrid grid = World.MapGrid;
 
             List<LandChunk> chunks = new(_chunkCountX * _chunkCountY);
             foreach (var ci in EnumerateChunks(_chunkCountX, _chunkCountY))
             {
-                List<MapCell> cells = new(ChunkSize * ChunkSize);
+                List<WorldCell> cells = new(ChunkSize * ChunkSize);
 
                 foreach (var index in ci.Cells)
                 {
-                    MapCell? cell = grid.GetCell(index);
+                    WorldCell? cell = grid.GetCell(index);
                     if (cell is null)
                     {
                         continue;
@@ -184,7 +184,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                     for (int b = 0; b < RoadBranch.MaxCount; b++)
                     {
                         HexaNeighborPosition position = (HexaNeighborPosition)b;
-                        MapCell? neighbor = tile.Cell.GetNeighbor(position);
+                        WorldCell? neighbor = tile.Cell.GetNeighbor(position);
                         if (neighbor is null ||
                             !neighbor.Tile.HasRoad)
                         {
@@ -406,10 +406,10 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
         {
             public readonly int ChunkX, ChunkY;
             public readonly int GridX, GridY;
-            public readonly IReadOnlyList<MapCell> Cells;
+            public readonly IReadOnlyList<WorldCell> Cells;
             public readonly MeshCollector MeshCollector;
 
-            public LandChunk(int chunkX, int chunkY, int gridX, int gridY, IReadOnlyList<MapCell> cells, MeshCollector meshCollector)
+            public LandChunk(int chunkX, int chunkY, int gridX, int gridY, IReadOnlyList<WorldCell> cells, MeshCollector meshCollector)
             {
                 ChunkX = chunkX;
                 ChunkY = chunkY;
@@ -424,12 +424,12 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
         {
             public readonly Province Province;
             public readonly Tile Tile;
-            public readonly MapCell Cell;
+            public readonly WorldCell Cell;
             public readonly RoadBranch Branch;
             public readonly RoadBranch MeshBranch;
             public readonly int CwShiftCount;
 
-            public RoadBlock(Province province, Tile tile, MapCell cell, RoadBranch branch, RoadBranch meshBranch, int cwShiftCount)
+            public RoadBlock(Province province, Tile tile, WorldCell cell, RoadBranch branch, RoadBranch meshBranch, int cwShiftCount)
             {
                 Province = province;
                 Tile = tile;

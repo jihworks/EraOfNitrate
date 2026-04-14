@@ -7,7 +7,6 @@
 
 #nullable enable
 
-using Jih.Unity.EraOfNitrogen.Worlds.Generators;
 using Jih.Unity.EraOfNitrogen.Worlds.Runtime;
 using Jih.Unity.Infrastructure;
 using Newtonsoft.Json;
@@ -21,28 +20,26 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
     [JsonObject]
     public class Province
     {
+        [JsonIgnore] MapProvince? _mapProvince;
+        [JsonIgnore] MapProvince MapProvince => _mapProvince.ThrowIfNull(nameof(MapProvince));
+
         /// <summary>
         /// 동일 월드 내 프로빈스들 사이에서 유일한 값.
         /// </summary>
-        [JsonProperty] public uint Id { get; private set; }
+        [JsonIgnore] public uint Id => MapProvince.Id;
 
-        [JsonProperty] public Biome Biome { get; private set; }
+        [JsonIgnore] public Biome Biome => MapProvince.Biome;
 
-        [JsonProperty] public Tile CityTile { get; private set; }
+        [JsonProperty(nameof(CityTile))] Tile? _cityTile;
+        [JsonIgnore] public Tile CityTile => _cityTile.ThrowIfNull(nameof(CityTile));
 
-        [JsonProperty(nameof(Tiles))] readonly List<Tile> _tiles;
+        [JsonProperty(nameof(Tiles))] readonly List<Tile> _tiles = new();
         /// <summary>
         /// <see cref="CityTile"/> 포함.
         /// </summary>
         [JsonIgnore] public IReadOnlyList<Tile> Tiles => _tiles;
 
-        [JsonProperty(nameof(AdjacentProvinceIds))] readonly List<uint> _adjacentProvinceIds;
-        [JsonIgnore] public IReadOnlyList<uint> AdjacentProvinceIds => _adjacentProvinceIds;
-
-        [JsonProperty(nameof(ConnectedProvinceIds))] readonly List<uint> _connectedProvinceIds;
-        [JsonIgnore] public IReadOnlyList<uint> ConnectedProvinceIds => _connectedProvinceIds;
-
-        [JsonProperty(nameof(Citizens))] readonly List<Citizen> _citizens;
+        [JsonProperty(nameof(Citizens))] readonly List<Citizen> _citizens = new();
         [JsonIgnore] public IReadOnlyList<Citizen> Citizens => _citizens;
 
         [JsonIgnore, MemberNotNullWhen(true,
@@ -64,46 +61,37 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         [JsonIgnore] public IReadOnlyList<DoodadCluster> DoodadClusters => _doodadClusters;
 
         [JsonConstructor]
-        private Province()
+        public Province()
         {
-            CityTile = null!;
-            _tiles = null!;
-            _adjacentProvinceIds = null!;
-            _connectedProvinceIds = null!;
-            _citizens = null!;
         }
 
-        public Province(GeneratorProvince generatorProvince)
+        public void Bind(MapProvince mapProvince)
         {
-            Id = generatorProvince.Id;
-
-            Biome = generatorProvince.Biome;
+            _mapProvince = mapProvince;
 
             Tile? cityTile = null;
 
-            _tiles = new(generatorProvince.Cells.Count);
-            foreach (var cell in generatorProvince.Cells)
+            if (_tiles.Count <= 0)
             {
-                Tile tile = new(cell);
-                _tiles.Add(tile);
+                for (int i = 0; i < mapProvince.Tiles.Count; i++)
+                {
+                    _tiles.Add(new Tile());
+                }
+            }
+            for (int i = 0; i < mapProvince.Tiles.Count; i++)
+            {
+                MapTile mapTile = mapProvince.Tiles[i];
+                Tile tile = _tiles[i];
+                
+                tile.Bind(mapTile);
 
-                if (cell == generatorProvince.CityCell)
+                if (mapTile == mapProvince.CityTile)
                 {
                     cityTile = tile;
                 }
             }
 
-            CityTile = cityTile ?? throw new InvalidOperationException("도시 셀이 프로빈스 셀 리스트에 없음.");
-
-            List<GeneratorProvince> adjacentProvinces = generatorProvince.AdjacentProvinces;
-            _adjacentProvinceIds = new(adjacentProvinces.Count);
-            _adjacentProvinceIds.AddRange(adjacentProvinces.Select(p => p.Id));
-
-            List<GeneratorProvince> connectedProvinces = generatorProvince.ConnectedProvinces;
-            _connectedProvinceIds = new(connectedProvinces.Count);
-            _connectedProvinceIds.AddRange(connectedProvinces.Select(p => p.Id));
-
-            _citizens = new List<Citizen>();
+            _cityTile = cityTile ?? throw new InvalidOperationException("도시 셀이 프로빈스 셀 리스트에 없음.");
         }
 
         public void Initialize(World world, IReadOnlyDictionary<uint, Province> provinceMap)
@@ -115,11 +103,11 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
 
             _world = world;
 
-            _adjacentProvinces = new List<Province>(_adjacentProvinceIds.Count);
-            _adjacentProvinces.AddRange(_adjacentProvinceIds.Select(id => provinceMap[id]));
+            _adjacentProvinces = new List<Province>(MapProvince.AdjacentProvinceIds.Count);
+            _adjacentProvinces.AddRange(MapProvince.AdjacentProvinceIds.Select(id => provinceMap[id]));
 
-            _connectedProvinces = new List<Province>(_connectedProvinceIds.Count);
-            _connectedProvinces.AddRange(_connectedProvinceIds.Select(id => provinceMap[id]));
+            _connectedProvinces = new List<Province>(MapProvince.ConnectedProvinceIds.Count);
+            _connectedProvinces.AddRange(MapProvince.ConnectedProvinceIds.Select(id => provinceMap[id]));
 
             IsInitialized = true;
         }

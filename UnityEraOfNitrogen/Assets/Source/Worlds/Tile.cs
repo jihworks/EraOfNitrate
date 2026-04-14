@@ -7,7 +7,6 @@
 
 #nullable enable
 
-using Jih.Unity.EraOfNitrogen.Worlds.Generators;
 using Jih.Unity.EraOfNitrogen.Worlds.Runtime;
 using Jih.Unity.Infrastructure;
 using Newtonsoft.Json;
@@ -20,26 +19,29 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
     [JsonObject]
     public class Tile
     {
-        [JsonProperty] public TileCoord Coord { get; private set; }
+        [JsonIgnore] MapTile? _mapTile;
+        [JsonIgnore] MapTile MapTile => _mapTile.ThrowIfNull(nameof(MapTile));
+
+        [JsonIgnore] public TileCoord Coord => MapTile.Coord;
 
         /// <summary>
         /// 땅 아니면 바다.
         /// </summary>
-        [JsonProperty] public bool IsLand { get; private set; }
+        [JsonIgnore] public bool IsLand => MapTile.IsLand;
         /// <summary>
         /// 연접한 셀 중 하나라도 바다면 해안선.
         /// </summary>
-        [JsonProperty] public bool IsCoastlineLand { get; private set; }
+        [JsonIgnore] public bool IsCoastlineLand => MapTile.IsCoastlineLand;
         /// <summary>
         /// 연접한 셀 중 하나라도 땅이면 근해.
         /// </summary>
-        [JsonProperty] public bool IsNearOcean { get; private set; }
+        [JsonIgnore] public bool IsNearOcean => MapTile.IsNearOcean;
         /// <summary>
         /// 초기 생성된 도로가 존재하는지 여부.
         /// </summary>
-        [JsonProperty] public bool HasRoad { get; private set; }
+        [JsonIgnore] public bool HasRoad => MapTile.HasRoad;
 
-        [JsonProperty(nameof(Doodads))] readonly List<Doodad> _doodads;
+        [JsonProperty(nameof(Doodads))] readonly List<Doodad> _doodads = new();
         [JsonIgnore] public IReadOnlyList<Doodad> Doodads => _doodads;
 
         [JsonIgnore, MemberNotNullWhen(true,
@@ -54,34 +56,35 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         /// </summary>
         [JsonIgnore] public Province? Province { get; private set; }
 
-        [JsonIgnore] MapCell? _cell;
-        [JsonIgnore] public MapCell Cell => _cell.ThrowIfNull(nameof(Cell));
+        [JsonIgnore] WorldCell? _cell;
+        [JsonIgnore] public WorldCell Cell => _cell.ThrowIfNull(nameof(Cell));
 
         [JsonIgnore] RoadElement? _roadElement;
         [JsonIgnore] public RoadElement? RoadElement => _roadElement;
 
         [JsonConstructor]
-        private Tile()
+        public Tile()
         {
-            _doodads = null!;
         }
 
-        public Tile(GeneratorCell cell)
+        public void Bind(MapTile mapTile)
         {
-            Coord = cell.Coord;
-            IsLand = cell.IsLand;
-            IsCoastlineLand = cell.IsCoastlineLand;
-            IsNearOcean = cell.IsNearOcean;
-            HasRoad = cell.HasRoad;
+            _mapTile = mapTile;
 
-            _doodads = new List<Doodad>(cell.Doodads.Count);
-            foreach (var doodad in cell.Doodads)
+            if (_doodads.Count <= 0)
             {
-                _doodads.Add(new Doodad(doodad));
+                for (int i = 0; i < mapTile.Doodads.Count; i++)
+                {
+                    _doodads.Add(new Doodad());
+                }
+            }
+            for (int i = 0; i < mapTile.Doodads.Count; i++)
+            {
+                _doodads[i].Bind(mapTile.Doodads[i]);
             }
         }
 
-        public void Initialize(World world, Province? province, MapCell cell)
+        public void Initialize(World world, Province? province, WorldCell cell)
         {
             if (IsInitialized)
             {

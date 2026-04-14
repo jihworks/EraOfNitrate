@@ -72,23 +72,35 @@ namespace Jih.Unity.EraOfNitrogen
             CursorFrameStack.Push(new CursorFrame(this, lockMode: CursorLockMode.None, cursorVisible: true));
             TimeFrameStack.Push(new TimeFrame(this, timeScale: 1f));
 
-            WorldGenerator worldGenerator = new();
-            worldGenerator.Execute();
+            SaveSession saveSession = new();
 
-            World? world = worldGenerator.ResultWorld;
-            if (world is null)
+            MapGenerator mapGenerator = new();
+            mapGenerator.Execute();
+
+            Map? map = mapGenerator.ResultMap;
+            if (map is null)
             {
-                Debug.LogError("Failed to generate world.");
+                Debug.LogError("Failed to generate map.");
                 return;
             }
-            world.Initialize();
+            Debug.Log($"Seed: {map.RandomSeed}");
 
-            Debug.Log($"Seed: {world.RandomSeed}");
+            World? world = new();
+            world.Bind(map);
+            world.Initialize();
 
             WorldMeshBuilder worldMeshBuilder = new(world);
 
             System.Diagnostics.Stopwatch stopwatch = new();
             stopwatch.Start();
+            {
+                string json = Infrastructure.Json.JsonSave.SerializeObject(map, typeof(Map).Namespace);
+                Debug.Log($"JSON 길이: " + json.Length);
+
+                saveSession.MapJson = json;
+            }
+            stopwatch.Stop();
+            Debug.Log($"맵 직렬화: {stopwatch.ElapsedMilliseconds}ms");
             {
                 GameObject landsRoot = new() { name = "Lands Root", };
 
@@ -159,9 +171,11 @@ namespace Jih.Unity.EraOfNitrogen
             {
                 string json = Infrastructure.Json.JsonSave.SerializeObject(world, typeof(World).Namespace);
                 Debug.Log($"JSON 길이: " + json.Length);
+
+                saveSession.WorldJson = json;
             }
             stopwatch.Stop();
-            Debug.Log($"직렬화: {stopwatch.ElapsedMilliseconds}ms");
+            Debug.Log($"월드 직렬화: {stopwatch.ElapsedMilliseconds}ms");
         }
 
         void Update()

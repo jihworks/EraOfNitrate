@@ -7,7 +7,6 @@
 
 #nullable enable
 
-using Jih.Unity.EraOfNitrogen.Worlds.Generators;
 using Jih.Unity.EraOfNitrogen.Worlds.Runtime;
 using Jih.Unity.Infrastructure;
 using Jih.Unity.Infrastructure.Collisions.Common3D;
@@ -23,58 +22,68 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
     [JsonObject]
     public class World
     {
-        [JsonProperty] public int Width { get; private set; }
-        [JsonProperty] public int Height { get; private set; }
+        [JsonIgnore] Map? _map;
+        [JsonIgnore] Map Map => _map.ThrowIfNull(nameof(Map));
 
-        [JsonProperty] public int RandomSeed { get; private set; }
+        [JsonIgnore] public int Width => Map.Width;
+        [JsonIgnore] public int Height => Map.Height;
+
+        [JsonIgnore] public int RandomSeed => Map.RandomSeed;
         [JsonProperty] public long RandomPosition { get; private set; }
 
-        [JsonProperty(nameof(Provinces))] readonly List<Province> _provinces;
+        [JsonProperty(nameof(Provinces))] readonly List<Province> _provinces = new();
         [JsonIgnore] public IReadOnlyList<Province> Provinces => _provinces;
 
-        [JsonProperty(nameof(OceanTiles))] readonly List<Tile> _oceanTiles;
-        [JsonIgnore] public IReadOnlyList<Tile>? OceanTiles => _oceanTiles;
+        [JsonProperty(nameof(OceanTiles))] readonly List<Tile> _oceanTiles = new();
+        [JsonIgnore] public IReadOnlyList<Tile> OceanTiles => _oceanTiles;
 
         [JsonIgnore, MemberNotNullWhen(true,
             nameof(_randomStream),
-            nameof(_mapGrid))]
+            nameof(_worldGrid))]
         public bool IsInitialized { get; private set; }
 
         [JsonIgnore] RandomStream? _randomStream;
         [JsonIgnore] public RandomStream RandomStream => _randomStream.ThrowIfNull(nameof(RandomStream));
 
-        [JsonIgnore] MapGrid? _mapGrid;
-        [JsonIgnore] public MapGrid MapGrid => _mapGrid.ThrowIfNull(nameof(MapGrid));
+        [JsonIgnore] WorldGrid? _worldGrid;
+        [JsonIgnore] public WorldGrid MapGrid => _worldGrid.ThrowIfNull(nameof(MapGrid));
 
         [JsonIgnore] readonly CollisionWorld _collisionWorld = new(cellSize: 1f);
         [JsonIgnore] public CollisionWorld CollisionWorld => _collisionWorld;
 
         [JsonConstructor]
-        private World()
+        public World()
         {
-            _provinces = null!;
-            _oceanTiles = null!;
         }
 
-        public World(GeneratorGrid generatorGrid, int mapSeed, IReadOnlyList<GeneratorProvince> generatorProvinces, IReadOnlyList<GeneratorCell> generatorOceanCells)
+        public void Bind(Map map)
         {
-            Width = generatorGrid.Width;
-            Height = generatorGrid.Height;
-            RandomSeed = mapSeed;
+            _map = map;
+
             RandomPosition = 0;
 
-            _provinces = new List<Province>(generatorProvinces.Count);
-            foreach (var generatorProvince in generatorProvinces)
+            if (_provinces.Count <= 0)
             {
-                Province province = new(generatorProvince);
-                _provinces.Add(province);
+                for (int i = 0; i < map.Provinces.Count; i++)
+                {
+                    _provinces.Add(new Province());
+                }
+            }
+            for (int i = 0; i < map.Provinces.Count; i++)
+            {
+                _provinces[i].Bind(map.Provinces[i]);
             }
 
-            _oceanTiles = new List<Tile>(generatorOceanCells.Count);
-            foreach (var generatorCell in generatorOceanCells)
+            if (_oceanTiles.Count <= 0)
             {
-                Tile oceanTile = new(generatorCell);
-                _oceanTiles.Add(oceanTile);
+                for (int i = 0; i < map.OceanTiles.Count; i++)
+                {
+                    _oceanTiles.Add(new Tile());
+                }
+            }
+            for (int i = 0; i < map.OceanTiles.Count; i++)
+            {
+                _oceanTiles[i].Bind(map.OceanTiles[i]);
             }
         }
 
@@ -130,20 +139,20 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
                 tile = oceanTile;
             }
 
-            _mapGrid = new MapGrid(Width, Height, tiles);
+            _worldGrid = new WorldGrid(Width, Height, tiles);
 
             foreach (var province in _provinces)
             {
                 foreach (var provinceTile in province.Tiles)
                 {
-                    provinceTile.Initialize(this, province, _mapGrid[(HexaIndex)(HexaCoord)provinceTile.Coord]);
+                    provinceTile.Initialize(this, province, _worldGrid[(HexaIndex)(HexaCoord)provinceTile.Coord]);
                 }
 
                 province.Initialize(this, provinceMap);
             }
             foreach (var oceanTile in _oceanTiles)
             {
-                oceanTile.Initialize(this, null, _mapGrid[(HexaIndex)(HexaCoord)oceanTile.Coord]);
+                oceanTile.Initialize(this, null, _worldGrid[(HexaIndex)(HexaCoord)oceanTile.Coord]);
             }
 
             IsInitialized = true;

@@ -7,24 +7,27 @@
 
 #nullable enable
 
-using Jih.Unity.EraOfNitrogen.Worlds.Generators;
 using Jih.Unity.EraOfNitrogen.Worlds.Runtime;
 using Jih.Unity.Infrastructure;
 using Newtonsoft.Json;
 using System;
 using System.Diagnostics.CodeAnalysis;
+using UnityEngine;
 
 namespace Jih.Unity.EraOfNitrogen.Worlds
 {
     [JsonObject]
     public class Doodad
     {
-        [JsonProperty] public DoodadType Type { get; private set; }
-        [JsonProperty] public int Variant { get; private set; }
+        [JsonIgnore] MapDoodad? _mapDoodad;
+        [JsonIgnore] MapDoodad MapDoodad => _mapDoodad.ThrowIfNull(nameof(MapDoodad));
 
-        [JsonProperty] public Float3 UnityLocation { get; private set; }
-        [JsonProperty] public float UnityRotationY { get; private set; }
-        [JsonProperty] public float UnityScale { get; private set; }
+        [JsonIgnore] public DoodadType Type => MapDoodad.Type;
+        [JsonIgnore] public int Variant => MapDoodad.Variant;
+
+        [JsonIgnore] public Vector3 UnityLocation => MapDoodad.UnityLocation;
+        [JsonIgnore] public float UnityRotationY => MapDoodad.UnityRotationY;
+        [JsonIgnore] public float UnityScale => MapDoodad.UnityScale;
 
         [JsonIgnore, MemberNotNullWhen(true,
             nameof(_tile))]
@@ -37,17 +40,13 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         [JsonIgnore] public DoodadElement Element => _element.ThrowIfNull(nameof(Element));
 
         [JsonConstructor]
-        private Doodad()
+        public Doodad()
         {
         }
 
-        public Doodad(GeneratorDoodad doodad)
+        public void Bind(MapDoodad mapDoodad)
         {
-            Type = doodad.Type;
-            Variant = doodad.Variant;
-            UnityLocation = doodad.UnityLocation;
-            UnityRotationY = doodad.UnityRotationY;
-            UnityScale = doodad.UnityScale;
+            _mapDoodad = mapDoodad;
         }
 
         public void Initialize(Tile tile)
