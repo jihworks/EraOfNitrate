@@ -19,14 +19,18 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 {
     public class DoodadCluster : IDisposable
     {
+        public Province Province { get; }
+
         readonly List<DoodadElement> _elements;
         public IReadOnlyList<DoodadElement> Elements => _elements;
 
         readonly IndirectInstancingBatch _instancingBatch;
         readonly List<DoodadCollision> _collisions;
 
-        public DoodadCluster(Mesh mesh, SerializableMesh convexHull, Material[] materials, IReadOnlyList<DoodadTransform> transforms)
+        public DoodadCluster(Province province, Mesh mesh, SerializableMesh convexHull, Material[] materials, IReadOnlyList<DoodadTransform> transforms)
         {
+            Province = province;
+
             int count = transforms.Count;
 
             _instancingBatch = new IndirectInstancingBatch(mesh, materials, count);
@@ -52,7 +56,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 {
                     DoodadElement element = _elements[i];
 
-                    DoodadCollision collision = new(convexHullTriangleCount, element);
+                    DoodadCollision collision = new(element, convexHullTriangleCount);
 
                     collision.Append(convexHullPoints, convexHullIndices);
                     collision.WorldTransform = element.Matrix;

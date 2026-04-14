@@ -17,7 +17,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 
         public DoodadElement Element { get; }
 
-        public DoodadCollision(int convexHullTriangleCount, DoodadElement element) : base(convexHullTriangleCount)
+        public DoodadCollision(DoodadElement element, int convexHullTriangleCount) : base(convexHullTriangleCount)
         {
             CollisionChannel = (uint)WorldCollisionChannel.Doodad;
             Element = element;

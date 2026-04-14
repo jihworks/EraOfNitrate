@@ -87,10 +87,17 @@ namespace Jih.Unity.EraOfNitrogen
 
             WorldMeshBuilder worldMeshBuilder = new(world);
 
+            System.Diagnostics.Stopwatch stopwatch = new();
+            stopwatch.Start();
             {
+                GameObject landsRoot = new() { name = "Lands Root", };
+
                 var chunks = worldMeshBuilder.BuildLand();
-                _ = worldMeshBuilder.Spawn(chunks, null);
+                _ = worldMeshBuilder.Spawn(chunks, landsRoot.transform);
             }
+            stopwatch.Stop();
+            Debug.Log($"땅 스폰: {stopwatch.ElapsedMilliseconds}ms");
+            stopwatch.Restart();
             {
                 var groups = worldMeshBuilder.BuildDoodads();
                 var clusters = worldMeshBuilder.Spawn(groups);
@@ -98,40 +105,63 @@ namespace Jih.Unity.EraOfNitrogen
                 _doodadClusters.Clear();
                 _doodadClusters.AddRange(clusters);
             }
+            stopwatch.Stop();
+            Debug.Log($"두대드 스폰: {stopwatch.ElapsedMilliseconds}ms");
+            stopwatch.Restart();
             {
-                var collisionWorld = world.CollisionWorld;
-
-                List<Infrastructure.Collisions.Common3D.ICollision> buffer = new();
-
                 GameObject roadsRoot = new() { name = "Roads Root", };
                 roadsRoot.transform.localPosition = new Vector3(0f, 0.01f, 0f);
 
                 var blocks = worldMeshBuilder.BuildRoads();
                 foreach (var pair in blocks)
                 {
-                    var roadElements = worldMeshBuilder.Spawn(pair, roadsRoot.transform);
+                    _ = worldMeshBuilder.Spawn(pair, roadsRoot.transform);
+                }
+            }
+            stopwatch.Stop();
+            Debug.Log($"도로 스폰: {stopwatch.ElapsedMilliseconds}ms");
+            stopwatch.Restart();
+            {
+                var collisionWorld = world.CollisionWorld;
+                List<Infrastructure.Collisions.Common3D.ICollision> buffer = new();
+                HashSet<Infrastructure.Collisions.Common3D.ICollision> hided = new();
 
-                    foreach (var roadElement in roadElements)
+                foreach (var province in world.Provinces)
+                {
+                    foreach (var tile in province.Tiles)
                     {
-                        buffer.Clear();
-                        collisionWorld.Collect(roadElement.CollisionShape, buffer);
-
-                        foreach (var hit in System.Linq.Enumerable.Cast<IWorldCollision>(buffer))
+                        if (tile.RoadElement is not null)
                         {
-                            if (hit.CollisionType is WorldCollisionType.Doodad)
+                            buffer.Clear();
+                            collisionWorld.Collect(tile.RoadElement.CollisionShape, buffer, ignoredCollisions: hided);
+
+                            foreach (var hit in System.Linq.Enumerable.Cast<IWorldCollision>(buffer))
                             {
-                                DoodadCollision doodadCollision = (DoodadCollision)hit;
-                                DoodadElement doodadElement = doodadCollision.Element;
-                                doodadElement.IsVisible = false;
+                                if (hit.CollisionType is WorldCollisionType.Doodad)
+                                {
+                                    DoodadCollision doodadCollision = (DoodadCollision)hit;
+                                    DoodadElement doodadElement = doodadCollision.Element;
+                                    doodadElement.IsVisible = false;
+
+                                    hided.Add(doodadCollision);
+                                }
                             }
                         }
                     }
                 }
             }
+            stopwatch.Stop();
+            Debug.Log($"두대드 컬링(도로): {stopwatch.ElapsedMilliseconds}ms");
+            stopwatch.Restart();
 
             _world = world;
 
-            _ = Infrastructure.Json.JsonSave.SerializeObject(world, typeof(World).Namespace);
+            {
+                string json = Infrastructure.Json.JsonSave.SerializeObject(world, typeof(World).Namespace);
+                Debug.Log($"JSON 길이: " + json.Length);
+            }
+            stopwatch.Stop();
+            Debug.Log($"직렬화: {stopwatch.ElapsedMilliseconds}ms");
         }
 
         void Update()

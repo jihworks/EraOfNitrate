@@ -33,10 +33,6 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         [JsonIgnore] Tile? _tile;
         [JsonIgnore] public Tile Tile => _tile.ThrowIfNull(nameof(Tile));
 
-        [JsonIgnore, MemberNotNullWhen(true,
-            nameof(_element))]
-        public bool IsSpawned { get; private set; }
-
         [JsonIgnore] DoodadElement? _element;
         [JsonIgnore] public DoodadElement Element => _element.ThrowIfNull(nameof(Element));
 
@@ -68,15 +64,13 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
 
         public void Spawned(DoodadElement element)
         {
-            if (IsSpawned)
+            if (_element is not null)
             {
                 throw new InvalidOperationException("이미 스폰된 두대드를 다시 스폰함.");
             }
 
             _element = element;
             element.Doodad = this;
-
-            IsSpawned = true;
         }
 
         public DoodadTransform GetTransform()

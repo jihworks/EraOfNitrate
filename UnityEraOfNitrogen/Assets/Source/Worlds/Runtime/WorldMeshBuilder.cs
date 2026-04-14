@@ -25,10 +25,16 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
         public World World { get; }
         public Assets Assets { get; }
 
+        readonly int _chunkCountX, _chunkCountY;
+
         public WorldMeshBuilder(World world, Assets? assets = null)
         {
             World = world;
             Assets = assets != null ? assets : Assets.Instance;
+
+            MapGrid grid = World.MapGrid;
+            _chunkCountX = grid.Width.CeilDivision(ChunkSize);
+            _chunkCountY = grid.Height.CeilDivision(ChunkSize);
         }
 
         public List<LandChunk> BuildLand()
@@ -40,45 +46,29 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 
             MapGrid grid = World.MapGrid;
 
-            int chunkCountX = grid.Width.CeilDivision(ChunkSize);
-            int chunkCountY = grid.Height.CeilDivision(ChunkSize);
-
-            List<LandChunk> chunks = new(chunkCountX * chunkCountY);
-            for (int cy = 0; cy < chunkCountY; cy++)
+            List<LandChunk> chunks = new(_chunkCountX * _chunkCountY);
+            foreach (var ci in EnumerateChunks(_chunkCountX, _chunkCountY))
             {
-                int baseGridY = cy * ChunkSize;
+                List<MapCell> cells = new(ChunkSize * ChunkSize);
 
-                for (int cx = 0; cx < chunkCountX; cx++)
+                foreach (var index in ci.Cells)
                 {
-                    int baseGridX = cx * ChunkSize;
-
-                    List<MapCell> cells = new(ChunkSize * ChunkSize);
-                    for (int dy = 0; dy < ChunkSize; dy++)
+                    MapCell? cell = grid.GetCell(index);
+                    if (cell is null)
                     {
-                        int gridY = baseGridY + dy;
-
-                        for (int dx = 0; dx < ChunkSize; dx++)
-                        {
-                            int gridX = baseGridX + dx;
-
-                            MapCell? cell = grid.GetCell(new HexaIndex(gridX, gridY));
-                            if (cell is null)
-                            {
-                                continue;
-                            }
-                            if (!cell.Tile.IsLand) // 땅인지 확인.
-                            {
-                                continue;
-                            }
-
-                            cells.Add(cell);
-                        }
+                        continue;
+                    }
+                    if (!cell.Tile.IsLand) // 땅인지 확인.
+                    {
+                        continue;
                     }
 
-                    if (cells.Count > 0)
-                    {
-                        chunks.Add(new LandChunk(cx, cy, baseGridX, baseGridY, cells, new MeshCollector(AdditionalAttributes.Color)));
-                    }
+                    cells.Add(cell);
+                }
+
+                if (cells.Count > 0)
+                {
+                    chunks.Add(new LandChunk(ci.X, ci.Y, ci.BaseGridX, ci.BaseGridY, cells, new MeshCollector(AdditionalAttributes.Color)));
                 }
             }
 
@@ -341,25 +331,75 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 
             foreach (var group in doodadGroups)
             {
+                Province province = group.Province;
+                IReadOnlyList<Doodad> doodads = group.Doodads;
+
                 DoodadAssets assets = Assets.GetDoodadAssets(group.Type);
 
                 Mesh mesh = assets.GetMesh(group.Index, out SerializableMesh convexHull);
                 Material[] materials = new Material[] { assets.Material, };
 
-                List<DoodadTransform> transforms = group.Doodads.Select(d => d.GetTransform()).ToList();
+                List<DoodadTransform> transforms = doodads.Select(d => d.GetTransform()).ToList();
 
-                DoodadCluster cluster = new(mesh, convexHull, materials, transforms);
+                DoodadCluster cluster = new(province, mesh, convexHull, materials, transforms);
                 result.Add(cluster);
 
                 cluster.RegisterCollisions(World.CollisionWorld);
 
                 for (int i = 0; i < cluster.Elements.Count; i++)
                 {
-                    group.Doodads[i].Spawned(cluster.Elements[i]);
+                    doodads[i].Spawned(cluster.Elements[i]);
                 }
+                province.Spwaned(cluster);
             }
 
             return result;
+        }
+
+        readonly struct ChunkIndex
+        {
+            public readonly int X, Y;
+            public readonly int BaseGridX, BaseGridY;
+            public readonly IEnumerable<HexaIndex> Cells;
+
+            public ChunkIndex(int x, int y, int baseGridX, int baseGridY, IEnumerable<HexaIndex> cells)
+            {
+                X = x;
+                Y = y;
+                BaseGridX = baseGridX;
+                BaseGridY = baseGridY;
+                Cells = cells;
+            }
+        }
+
+        static IEnumerable<ChunkIndex> EnumerateChunks(int chunkCountX, int chunkCountY)
+        {
+            static IEnumerable<HexaIndex> Enumerate(int baseGridX, int baseGridY)
+            {
+                for (int dy = 0; dy < ChunkSize; dy++)
+                {
+                    int gridY = baseGridY + dy;
+
+                    for (int dx = 0; dx < ChunkSize; dx++)
+                    {
+                        int gridX = baseGridX + dx;
+
+                        yield return new HexaIndex(gridX, gridY);
+                    }
+                }
+            }
+
+            for (int cy = 0; cy < chunkCountY; cy++)
+            {
+                int baseGridY = cy * ChunkSize;
+
+                for (int cx = 0; cx < chunkCountX; cx++)
+                {
+                    int baseGridX = cx * ChunkSize;
+
+                    yield return new ChunkIndex(cx, cy, baseGridX, baseGridY, Enumerate(baseGridX, baseGridY));
+                }
+            }
         }
 
         public readonly struct LandChunk

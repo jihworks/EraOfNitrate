@@ -8,6 +8,7 @@
 #nullable enable
 
 using Jih.Unity.EraOfNitrogen.Worlds.Generators;
+using Jih.Unity.EraOfNitrogen.Worlds.Runtime;
 using Jih.Unity.Infrastructure;
 using Newtonsoft.Json;
 using System;
@@ -58,6 +59,9 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
 
         [JsonIgnore] List<Province>? _connectedProvinces;
         [JsonIgnore] public IReadOnlyList<Province> ConnectedProvices => _connectedProvinces.ThrowIfNull(nameof(ConnectedProvices));
+
+        [JsonIgnore] readonly List<DoodadCluster> _doodadClusters = new();
+        [JsonIgnore] public IReadOnlyList<DoodadCluster> DoodadClusters => _doodadClusters;
 
         [JsonConstructor]
         private Province()
@@ -118,6 +122,16 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
             _connectedProvinces.AddRange(_connectedProvinceIds.Select(id => provinceMap[id]));
 
             IsInitialized = true;
+        }
+
+        public void Spwaned(DoodadCluster doodadCluster)
+        {
+            if (_doodadClusters.Contains(doodadCluster))
+            {
+                throw new InvalidOperationException("두대드 클러스터가 이미 스폰됐지만 다시 스폰됨.");
+            }
+
+            _doodadClusters.Add(doodadCluster);
         }
     }
 }
