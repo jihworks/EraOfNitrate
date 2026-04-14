@@ -10,6 +10,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -18,6 +19,9 @@ namespace Jih.Unity.Infrastructure.Json
 {
     class JsonSaveContractResolver : DefaultContractResolver
     {
+        // Value is dummy.
+        static readonly ConcurrentDictionary<Type, bool> _checkedTypes = new();
+
         protected override IList<JsonProperty> CreateProperties(Type type, MemberSerialization memberSerialization)
         {
             static void CheckIncludeOrExclude(Type reportType, MemberInfo member, out bool hasInclude, out bool hasExclude)
@@ -92,6 +96,12 @@ namespace Jih.Unity.Infrastructure.Json
                 }
             }
 
+            // Skip if already checked type.
+            if (!_checkedTypes.TryAdd(type, true))
+            {
+                goto SKIP;
+            }
+
             if (type.IsValueType)
             {
                 CheckType(type, type);
@@ -110,6 +120,7 @@ namespace Jih.Unity.Infrastructure.Json
                 }
             }
 
+        SKIP:
             return base.CreateProperties(type, memberSerialization);
         }
     }
