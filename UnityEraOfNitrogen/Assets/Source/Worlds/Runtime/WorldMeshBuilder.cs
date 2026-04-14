@@ -110,9 +110,9 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 
                 for (int v = 0; v < 6; v++)
                 {
-                    HexaVertexPosition position = (HexaVertexPosition)v;
-                    Vector2 screenVertexOffset = GetScreenVertexOffset(position);
-                    Vector3 unityVertexOffset = ScreenToUnity(screenVertexOffset);
+                    HexaVertex vertex = cell.GetVertex((HexaVertexPosition)v);
+
+                    Vector3 unityVertexOffset = ScreenToUnity(HexaToScreen(vertex.Coord));
 
                     cwCornersBuffer[v] = new VertexData(unityCenterLocation + unityVertexOffset, biomeColor);
                 }

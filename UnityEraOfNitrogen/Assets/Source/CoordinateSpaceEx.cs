@@ -32,11 +32,6 @@ namespace Jih.Unity.EraOfNitrogen
             return _hexaOrientation.ScreenToHexa(p);
         }
 
-        public static Vector2 GetScreenVertexOffset(HexaVertexPosition position)
-        {
-            return _hexaOrientation.GetScreenVertexOffset(position);
-        }
-
         static readonly HexaOrientation _hexaOrientation = new(Vector2.zero, Vector2.one);
     }
 }

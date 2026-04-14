@@ -33,8 +33,6 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 
         readonly int _minScale100 = 24, _maxScale100 = 32;
 
-        readonly Dictionary<HexaVertex, Vector3> _vertexUnityLocationMap = new();
-
         public DoodadGenerator(RandomStream random, IReadOnlyList<GeneratorProvince> provinces)
         {
             _random = random;
@@ -43,8 +41,6 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 
         public void Execute()
         {
-            _vertexUnityLocationMap.Clear();
-
             foreach (var province in _provinces)
             {
                 if (!_rules.TryGetValue(province.Biome, out DoodadRule rule) || rule.RetryCount == 0)
@@ -142,8 +138,8 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 
                 HexaEdge edge = cell.GetEdge(neighborPosition.ConvertToEdge());
                 HexaVertex v0 = edge.Vertex0, v1 = edge.Vertex1;
-                Vector3 unityLocation0 = GetVertexUnityLocation(v0);
-                Vector3 unityLocation1 = GetVertexUnityLocation(v1);
+                Vector3 unityLocation0 = ScreenToUnity(HexaToScreen(v0.Coord));
+                Vector3 unityLocation1 = ScreenToUnity(HexaToScreen(v1.Coord));
 
                 Vector3 unityClosestPoint = MathEx.GetClosestPointOnLine(unityLocation0, unityLocation1, unityLocation);
                 if ((unityClosestPoint - unityLocation).sqrMagnitude < borderPushDistSq)
@@ -153,26 +149,6 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
             }
 
             return true;
-        }
-
-        Vector3 GetVertexUnityLocation(HexaVertex vertex)
-        {
-            if (_vertexUnityLocationMap.TryGetValue(vertex, out Vector3 value))
-            {
-                return value;
-            }
-
-            HexaCell anyCell = vertex.EnumerateCells().First();
-            HexaVertexPosition position = anyCell.GetPosition(vertex);
-
-            float angle = position.GetRadiusDegrees();
-            Vector2 screenOffset = MathEx.RadiusVector(angle.ToRadians());
-
-            Vector2 screenLocation = HexaToScreen(anyCell.Coord) + screenOffset;
-            Vector3 unityLocation = ScreenToUnity(screenLocation);
-            
-            _vertexUnityLocationMap.Add(vertex, unityLocation);
-            return unityLocation;
         }
 
         struct DoodadRule
