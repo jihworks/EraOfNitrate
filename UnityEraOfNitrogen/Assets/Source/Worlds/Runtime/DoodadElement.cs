@@ -7,20 +7,13 @@
 
 #nullable enable
 
-using Jih.Unity.Infrastructure.Collisions.Common3D;
-
 namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 {
-    public class DoodadCollision : MeshCollision, IWorldCollision
+    public sealed class DoodadElement : DoodadCluster.Element
     {
-        public WorldCollisionType CollisionType => WorldCollisionType.Doodad;
-
-        public DoodadElement Element { get; }
-
-        public DoodadCollision(int convexHullTriangleCount, DoodadElement element) : base(convexHullTriangleCount)
+        public DoodadElement(DoodadCluster cluster, int index, DoodadTransform originalTransform)
+            : base(cluster, index, originalTransform)
         {
-            CollisionChannel = (uint)WorldCollisionChannel.Doodad;
-            Element = element;
         }
     }
 }

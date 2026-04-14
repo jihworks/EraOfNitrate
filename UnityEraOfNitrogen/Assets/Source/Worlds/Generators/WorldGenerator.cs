@@ -17,9 +17,9 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
     {
         public World? ResultWorld { get; private set; }
 
-        public void Execute()
+        public void Execute(int? seed = null)
         {
-            RandomStream random = new();
+            RandomStream random = new(seed ?? Environment.TickCount);
 
             UnityEngine.Debug.Log("== 월드 생성 시작");
 

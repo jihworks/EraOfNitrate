@@ -8,19 +8,34 @@
 #nullable enable
 
 using Jih.Unity.Infrastructure.Collisions.Common3D;
+using System.Collections.Generic;
+using UnityEngine;
 
 namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 {
-    public class DoodadCollision : MeshCollision, IWorldCollision
+    public class RoadElement
     {
-        public WorldCollisionType CollisionType => WorldCollisionType.Doodad;
+        public Tile Tile { get; }
 
-        public DoodadElement Element { get; }
+        readonly List<GameObject> _gameObjects;
+        public IReadOnlyList<GameObject> GameObjects => _gameObjects;
 
-        public DoodadCollision(int convexHullTriangleCount, DoodadElement element) : base(convexHullTriangleCount)
+        public MeshShape CollisionShape { get; }
+
+        public RoadElement(Tile tile, List<GameObject> gameObjects, MeshShape collisionShape)
         {
-            CollisionChannel = (uint)WorldCollisionChannel.Doodad;
-            Element = element;
+            Tile = tile;
+            _gameObjects = gameObjects;
+            CollisionShape = collisionShape;
+        }
+
+        public void Destroy()
+        {
+            foreach (var gameObject in _gameObjects)
+            {
+                Object.Destroy(gameObject);
+            }
+            _gameObjects.Clear();
         }
     }
 }

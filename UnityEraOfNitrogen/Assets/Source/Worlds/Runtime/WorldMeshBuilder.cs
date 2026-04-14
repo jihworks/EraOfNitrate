@@ -8,6 +8,7 @@
 #nullable enable
 
 using Jih.Unity.Infrastructure;
+using Jih.Unity.Infrastructure.Collisions.Common3D;
 using Jih.Unity.Infrastructure.Geometries;
 using Jih.Unity.Infrastructure.HexaGrid;
 using System;
@@ -232,8 +233,10 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             return result;
         }
 
-        public List<GameObject> Spawn(KeyValuePair<Province, List<RoadBlock>> roadBlocks, Transform? parent)
+        public List<RoadElement> Spawn(KeyValuePair<Province, List<RoadBlock>> roadBlocks, Transform? parent)
         {
+            List<RoadElement> result = new(roadBlocks.Value.Count);
+
             RoadAssets assets = Assets.GetRoadAssets(RoadLevel.Dirt/*TODO: 테스트 용 도로 레벨.*/);
 
             Material material = assets.Material;
@@ -244,37 +247,54 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             MaterialPropertyBlock propertyBlock = new();
             propertyBlock.SetTexture(ShaderIds.MainTexure, mainTexture);
 
-            List<GameObject> result = new(roadBlocks.Value.Count);
             foreach (var roadBlock in roadBlocks.Value)
             {
-                Mesh mesh = assets.GetMesh(roadBlock.MeshBranch);
+                Mesh mesh = assets.GetMesh(roadBlock.MeshBranch, out MeshCollector meshCollector);
 
-                float zRotation = assets.MeshBaseZRotation;
-                // CW로 회전하여 찾았으므로, CCW로 회전해야 함.
-                zRotation += roadBlock.CwShiftCount * -60f;
-
-                Quaternion rotation = Quaternion.AngleAxis(zRotation, Vector3.up);
-
-                HexaCoord coord = roadBlock.Cell.Coord;
-                Vector2 screenLocation = HexaToScreen(coord);
-                Vector3 unityLocation = ScreenToUnity(screenLocation);
-
-                GameObject meshObj = new() { name = "Road Block " + coord, };
-                result.Add(meshObj);
-
-                if (parent != null)
+                GameObject meshObj;
+                Matrix4x4 worldMatrix;
                 {
-                    meshObj.transform.SetParent(parent, false);
+                    float zRotation = assets.MeshBaseZRotation;
+                    // CW로 회전하여 찾았으므로, CCW로 회전해야 함.
+                    zRotation += roadBlock.CwShiftCount * -60f;
+
+                    Quaternion rotation = Quaternion.AngleAxis(zRotation, Vector3.up);
+
+                    HexaCoord coord = roadBlock.Cell.Coord;
+                    Vector2 screenLocation = HexaToScreen(coord);
+                    Vector3 unityLocation = ScreenToUnity(screenLocation);
+
+                    meshObj = new GameObject() { name = "Road Block " + coord, };
+
+                    if (parent != null)
+                    {
+                        meshObj.transform.SetParent(parent, false);
+                    }
+                    meshObj.transform.SetLocalPositionAndRotation(unityLocation, rotation);
+                    worldMatrix = meshObj.transform.localToWorldMatrix;
+
+                    MeshFilter meshFilter = meshObj.AddComponent<MeshFilter>();
+                    meshFilter.sharedMesh = mesh;
+
+                    MeshRenderer meshRenderer = meshObj.AddComponent<MeshRenderer>();
+                    meshRenderer.sharedMaterials = materials;
+                    meshRenderer.SetPropertyBlock(propertyBlock);
+                    meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
                 }
-                meshObj.transform.SetLocalPositionAndRotation(unityLocation, rotation);
 
-                MeshFilter meshFilter = meshObj.AddComponent<MeshFilter>();
-                meshFilter.sharedMesh = mesh;
+                MeshShape collisionShape;
+                {
+                    collisionShape = new MeshShape();
 
-                MeshRenderer meshRenderer = meshObj.AddComponent<MeshRenderer>();
-                meshRenderer.sharedMaterials = materials;
-                meshRenderer.SetPropertyBlock(propertyBlock);
-                meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+                    collisionShape.Append(meshCollector);
+                    collisionShape.WorldTransform = worldMatrix;
+                    collisionShape.Freeze();
+                }
+
+                RoadElement roadElement = new(roadBlock.Tile, new List<GameObject>() { meshObj, }, collisionShape);
+                result.Add(roadElement);
+
+                roadBlock.Tile.Spawned(roadElement);
             }
 
             return result;

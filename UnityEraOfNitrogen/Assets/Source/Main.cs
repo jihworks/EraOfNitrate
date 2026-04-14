@@ -41,6 +41,8 @@ namespace Jih.Unity.EraOfNitrogen
         StateStorage<State> _state = new(nameof(Main));
         State? CurrentState { get => _state.Current; set => _state.Current = value; }
 
+        World? _world;
+
         readonly List<DoodadCluster> _doodadClusters = new();
 
         public Main()
@@ -81,6 +83,8 @@ namespace Jih.Unity.EraOfNitrogen
             }
             world.Initialize();
 
+            Debug.Log($"Seed: {world.RandomSeed}");
+
             WorldMeshBuilder worldMeshBuilder = new(world);
 
             {
@@ -95,15 +99,37 @@ namespace Jih.Unity.EraOfNitrogen
                 _doodadClusters.AddRange(clusters);
             }
             {
+                var collisionWorld = world.CollisionWorld;
+
+                List<Infrastructure.Collisions.Common3D.ICollision> buffer = new();
+
                 GameObject roadsRoot = new() { name = "Roads Root", };
                 roadsRoot.transform.localPosition = new Vector3(0f, 0.01f, 0f);
 
                 var blocks = worldMeshBuilder.BuildRoads();
                 foreach (var pair in blocks)
                 {
-                    _ = worldMeshBuilder.Spawn(pair, roadsRoot.transform);
+                    var roadElements = worldMeshBuilder.Spawn(pair, roadsRoot.transform);
+
+                    foreach (var roadElement in roadElements)
+                    {
+                        buffer.Clear();
+                        collisionWorld.Collect(roadElement.CollisionShape, buffer);
+
+                        foreach (var hit in System.Linq.Enumerable.Cast<IWorldCollision>(buffer))
+                        {
+                            if (hit.CollisionType is WorldCollisionType.Doodad)
+                            {
+                                DoodadCollision doodadCollision = (DoodadCollision)hit;
+                                DoodadElement doodadElement = doodadCollision.Element;
+                                doodadElement.IsVisible = false;
+                            }
+                        }
+                    }
                 }
             }
+
+            _world = world;
 
             _ = Infrastructure.Json.JsonSave.SerializeObject(world, typeof(World).Namespace);
         }
@@ -115,6 +141,40 @@ namespace Jih.Unity.EraOfNitrogen
             foreach (var doodadCluster in _doodadClusters)
             {
                 doodadCluster.Update();
+            }
+
+            // TODO: Debug draw.
+            //if (_world is not null)
+            {
+                //foreach (var collision in _world.CollisionWorld.Collisions)
+                //{
+                //    if (collision is DoodadCollision doodadCollision &&
+                //        !doodadCollision.Element.IsVisible)
+                //    {
+                //        foreach (var triangle in doodadCollision.Triangles)
+                //        {
+                //            Debug.DrawLine(triangle.WorldV0, triangle.WorldV1, Color.green);
+                //            Debug.DrawLine(triangle.WorldV1, triangle.WorldV2, Color.green);
+                //            Debug.DrawLine(triangle.WorldV2, triangle.WorldV0, Color.green);
+                //        }
+                //    }
+                //}
+
+                //foreach (var province in _world.Provinces)
+                //{
+                //    foreach (var tile in province.Tiles)
+                //    {
+                //        if (tile.RoadElement is not null)
+                //        {
+                //            foreach (var triangle in tile.RoadElement.CollisionShape.Triangles)
+                //            {
+                //                Debug.DrawLine(triangle.WorldV0, triangle.WorldV1, Color.blue);
+                //                Debug.DrawLine(triangle.WorldV1, triangle.WorldV2, Color.blue);
+                //                Debug.DrawLine(triangle.WorldV2, triangle.WorldV0, Color.blue);
+                //            }
+                //        }
+                //    }
+                //}
             }
         }
 

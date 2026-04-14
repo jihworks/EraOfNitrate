@@ -12,6 +12,7 @@ using Jih.Unity.Infrastructure;
 using Jih.Unity.Infrastructure.Geometries;
 using Jih.Unity.Infrastructure.Runtime;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Jih.Unity.EraOfNitrogen
@@ -128,71 +129,42 @@ namespace Jih.Unity.EraOfNitrogen
         [SerializeField] Mesh? _mesh01234;
         [SerializeField] Mesh? _mesh012345;
 
-        public Mesh GetMesh(RoadBranch branch)
+        Dictionary<RoadBranch, (Mesh Mesh, MeshCollector Collector)>? _map;
+
+        public Mesh GetMesh(RoadBranch branch, out MeshCollector collector)
         {
-            Mesh? mesh;
-            if (branch == RoadBranch.None)
+            if (_map is null)
             {
-                mesh = _meshNone;
-            }
-            else if (branch == RoadBranch.Branch0)
-            {
-                mesh = _mesh0;
-            }
-            else if (branch == RoadBranch.Branch01)
-            {
-                mesh = _mesh01;
-            }
-            else if (branch == RoadBranch.Branch02)
-            {
-                mesh = _mesh02;
-            }
-            else if (branch == RoadBranch.Branch03)
-            {
-                mesh = _mesh03;
-            }
-            else if (branch == RoadBranch.Branch012)
-            {
-                mesh = _mesh012;
-            }
-            else if (branch == RoadBranch.Branch013)
-            {
-                mesh = _mesh013;
-            }
-            else if (branch == RoadBranch.Branch024)
-            {
-                mesh = _mesh024;
-            }
-            else if (branch == RoadBranch.Branch035)
-            {
-                mesh = _mesh035;
-            }
-            else if (branch == RoadBranch.Branch0123)
-            {
-                mesh = _mesh0123;
-            }
-            else if (branch == RoadBranch.Branch0234)
-            {
-                mesh = _mesh0234;
-            }
-            else if (branch == RoadBranch.Branch0235)
-            {
-                mesh = _mesh0235;
-            }
-            else if (branch == RoadBranch.Branch01234)
-            {
-                mesh = _mesh01234;
-            }
-            else if (branch == RoadBranch.Branch012345)
-            {
-                mesh = _mesh012345;
-            }
-            else
-            {
-                throw new ArgumentOutOfRangeException(nameof(branch));
+                _map = new Dictionary<RoadBranch, (Mesh Mesh, MeshCollector Collector)>(14);
+
+                void Add(RoadBranch key, Mesh? mesh)
+                {
+                    mesh.ThrowIfNull(out Mesh meshN, $"Road Mesh {key}");
+
+                    MeshCollector collector = MeshCollector.Load(meshN, AdditionalAttributes.None);
+
+                    _map.Add(key, (meshN, collector));
+                }
+                Add(RoadBranch.None, _meshNone);
+                Add(RoadBranch.Branch0, _mesh0);
+                Add(RoadBranch.Branch01, _mesh01);
+                Add(RoadBranch.Branch02, _mesh02);
+                Add(RoadBranch.Branch03, _mesh03);
+                Add(RoadBranch.Branch012, _mesh012);
+                Add(RoadBranch.Branch013, _mesh013);
+                Add(RoadBranch.Branch024, _mesh024);
+                Add(RoadBranch.Branch035, _mesh035);
+                Add(RoadBranch.Branch0123, _mesh0123);
+                Add(RoadBranch.Branch0234, _mesh0234);
+                Add(RoadBranch.Branch0235, _mesh0235);
+                Add(RoadBranch.Branch01234, _mesh01234);
+                Add(RoadBranch.Branch012345, _mesh012345);
             }
 
-            return mesh.ThrowIfNull("Mesh" + branch.ToString());
+            var (mesh, resultCollector) = _map[branch];
+
+            collector = resultCollector;
+            return mesh;
         }
     }
 }

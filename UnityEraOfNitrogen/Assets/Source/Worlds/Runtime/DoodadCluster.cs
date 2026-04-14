@@ -50,10 +50,12 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 _collisions = new List<DoodadCollision>(count);
                 for (int i = 0; i < count; i++)
                 {
-                    DoodadCollision collision = new(convexHullTriangleCount);
+                    DoodadElement element = _elements[i];
+
+                    DoodadCollision collision = new(convexHullTriangleCount, element);
 
                     collision.Append(convexHullPoints, convexHullIndices);
-                    collision.WorldTransform = _elements[i].Matrix;
+                    collision.WorldTransform = element.Matrix;
                     collision.Freeze();
 
                     _collisions.Add(collision);
@@ -112,6 +114,20 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 }
             }
 
+            Doodad? _doodad;
+            public Doodad Doodad
+            {
+                get => _doodad.ThrowIfNull(nameof(Doodad));
+                set
+                {
+                    if (_doodad is not null)
+                    {
+                        throw new InvalidOperationException("이미 두대드가 할당되었음");
+                    }
+                    _doodad = value;
+                }
+            }
+
             public Element(DoodadCluster cluster, int index, DoodadTransform transform)
             {
                 Cluster = cluster;
@@ -128,35 +144,5 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
         }
 
         static readonly Matrix4x4 _hideMatrix = Matrix4x4.Scale(Vector3.zero);
-    }
-
-    public sealed class DoodadElement : DoodadCluster.Element
-    {
-        public DoodadElement(DoodadCluster cluster, int index, DoodadTransform originalTransform)
-            : base(cluster, index, originalTransform)
-        {
-        }
-    }
-
-    public struct DoodadTransform
-    {
-        public Vector3 UnityLocation;
-        public float UnityRotationY;
-        public float UnityScale;
-
-        public DoodadTransform(Vector3 unityLocation, float unityRotationY, float unityScale)
-        {
-            UnityLocation = unityLocation;
-            UnityRotationY = unityRotationY;
-            UnityScale = unityScale;
-        }
-
-        public readonly Matrix4x4 GetMatrix()
-        {
-            return Matrix4x4.TRS(
-                UnityLocation,
-                Quaternion.AngleAxis(UnityRotationY, Vector3.up),
-                VectorEx.CreateUniform3(UnityScale));
-        }
     }
 }

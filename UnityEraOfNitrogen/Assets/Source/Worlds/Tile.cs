@@ -57,6 +57,9 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         [JsonIgnore] MapCell? _cell;
         [JsonIgnore] public MapCell Cell => _cell.ThrowIfNull(nameof(Cell));
 
+        [JsonIgnore] RoadElement? _roadElement;
+        [JsonIgnore] public RoadElement? RoadElement => _roadElement;
+
         [JsonConstructor]
         private Tile()
         {
@@ -101,6 +104,16 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
             }
 
             IsInitialized = true;
+        }
+
+        public void Spawned(RoadElement roadElement)
+        {
+            if (_roadElement is not null)
+            {
+                throw new InvalidOperationException("이미 도로가 스폰됐지만 다시 스폰됨.");
+            }
+
+            _roadElement = roadElement;
         }
     }
 }

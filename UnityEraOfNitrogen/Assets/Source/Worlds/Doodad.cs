@@ -74,6 +74,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
             }
 
             _element = element;
+            element.Doodad = this;
 
             IsSpawned = true;
         }

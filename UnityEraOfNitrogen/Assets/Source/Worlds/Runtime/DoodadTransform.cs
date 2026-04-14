@@ -7,20 +7,30 @@
 
 #nullable enable
 
-using Jih.Unity.Infrastructure.Collisions.Common3D;
+using Jih.Unity.Infrastructure;
+using UnityEngine;
 
 namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 {
-    public class DoodadCollision : MeshCollision, IWorldCollision
+    public struct DoodadTransform
     {
-        public WorldCollisionType CollisionType => WorldCollisionType.Doodad;
+        public Vector3 UnityLocation;
+        public float UnityRotationY;
+        public float UnityScale;
 
-        public DoodadElement Element { get; }
-
-        public DoodadCollision(int convexHullTriangleCount, DoodadElement element) : base(convexHullTriangleCount)
+        public DoodadTransform(Vector3 unityLocation, float unityRotationY, float unityScale)
         {
-            CollisionChannel = (uint)WorldCollisionChannel.Doodad;
-            Element = element;
+            UnityLocation = unityLocation;
+            UnityRotationY = unityRotationY;
+            UnityScale = unityScale;
+        }
+
+        public readonly Matrix4x4 GetMatrix()
+        {
+            return Matrix4x4.TRS(
+                UnityLocation,
+                Quaternion.AngleAxis(UnityRotationY, Vector3.up),
+                VectorEx.CreateUniform3(UnityScale));
         }
     }
 }

@@ -38,12 +38,16 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         [JsonProperty(nameof(AdjacentProvinceIds))] readonly List<uint> _adjacentProvinceIds;
         [JsonIgnore] public IReadOnlyList<uint> AdjacentProvinceIds => _adjacentProvinceIds;
 
+        [JsonProperty(nameof(ConnectedProvinceIds))] readonly List<uint> _connectedProvinceIds;
+        [JsonIgnore] public IReadOnlyList<uint> ConnectedProvinceIds => _connectedProvinceIds;
+
         [JsonProperty(nameof(Citizens))] readonly List<Citizen> _citizens;
         [JsonIgnore] public IReadOnlyList<Citizen> Citizens => _citizens;
 
         [JsonIgnore, MemberNotNullWhen(true,
             nameof(_world),
-            nameof(_adjacentProvinces))]
+            nameof(_adjacentProvinces),
+            nameof(_connectedProvinces))]
         public bool IsInitialized { get; private set; }
 
         [JsonIgnore] World? _world;
@@ -52,12 +56,16 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         [JsonIgnore] List<Province>? _adjacentProvinces;
         [JsonIgnore] public IReadOnlyList<Province> AdjacentProvinces => _adjacentProvinces.ThrowIfNull(nameof(AdjacentProvinces));
 
+        [JsonIgnore] List<Province>? _connectedProvinces;
+        [JsonIgnore] public IReadOnlyList<Province> ConnectedProvices => _connectedProvinces.ThrowIfNull(nameof(ConnectedProvices));
+
         [JsonConstructor]
         private Province()
         {
             CityTile = null!;
             _tiles = null!;
             _adjacentProvinceIds = null!;
+            _connectedProvinceIds = null!;
             _citizens = null!;
         }
 
@@ -87,6 +95,10 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
             _adjacentProvinceIds = new(adjacentProvinces.Count);
             _adjacentProvinceIds.AddRange(adjacentProvinces.Select(p => p.Id));
 
+            List<GeneratorProvince> connectedProvinces = generatorProvince.ConnectedProvinces;
+            _connectedProvinceIds = new(connectedProvinces.Count);
+            _connectedProvinceIds.AddRange(connectedProvinces.Select(p => p.Id));
+
             _citizens = new List<Citizen>();
         }
 
@@ -101,6 +113,9 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
 
             _adjacentProvinces = new List<Province>(_adjacentProvinceIds.Count);
             _adjacentProvinces.AddRange(_adjacentProvinceIds.Select(id => provinceMap[id]));
+
+            _connectedProvinces = new List<Province>(_connectedProvinceIds.Count);
+            _connectedProvinces.AddRange(_connectedProvinceIds.Select(id => provinceMap[id]));
 
             IsInitialized = true;
         }
