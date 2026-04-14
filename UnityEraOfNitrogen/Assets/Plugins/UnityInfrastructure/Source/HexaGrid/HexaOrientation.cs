@@ -60,12 +60,5 @@ namespace Jih.Unity.Infrastructure.HexaGrid
             float b = B2 * pt.x + B3 * pt.y;
             return new HexaCoordF(a, b, -a - b);
         }
-
-        public Vector2 GetScreenVertexOffset(HexaVertexPosition position)
-        {
-            float angle = position.GetRadiusDegrees();
-            Vector2 radiusVector = MathEx.RadiusVector(angle.ToRadians());
-            return new Vector2(radiusVector.x * Radius.x, radiusVector.y * Radius.y);
-        }
     }
 }
