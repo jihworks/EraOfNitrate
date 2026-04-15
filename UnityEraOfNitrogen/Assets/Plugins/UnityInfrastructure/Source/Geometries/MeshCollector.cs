@@ -264,6 +264,8 @@ namespace Jih.Unity.Infrastructure.Geometries
         /// </summary>
         public AdditionalAttributes AdditionalAttributes { get; }
 
+        public int VertexCount => _positions.Count;
+
         readonly List<Vector3> _positions;
         public IReadOnlyList<Vector3> Positions => _positions;
 
@@ -433,6 +435,72 @@ namespace Jih.Unity.Infrastructure.Geometries
                 {
                     break;
                 }
+                targetList[currIndex] = secureValue is not null ? secureValue(result) : result;
+            }
+        }
+
+        public void EditPositions(Func<Vector3, Vector3> edit)
+        {
+            EditPositions(0, _positions.Count, edit);
+        }
+        public void EditColors(Func<Color, Color> edit)
+        {
+            EditColors(0, _positions.Count, edit);
+        }
+        public void EditNormals(Func<Vector3, Vector3> edit)
+        {
+            EditNormals(0, _positions.Count, edit);
+        }
+        public void EditTangents(Func<Vector4, Vector4> edit)
+        {
+            EditTangents(0, _positions.Count, edit);
+        }
+        public void EditBoneWeights(Func<IReadOnlyList<BoneWeight1>, IReadOnlyList<BoneWeight1>> edit)
+        {
+            EditBoneWeights(0, _positions.Count, edit);
+        }
+
+        public void EditPositions(int startIndex, int count, Func<Vector3, Vector3> edit)
+        {
+            EditImpl("positions", _positions, startIndex, count, edit, null);
+        }
+        public void EditColors(int startIndex, int count, Func<Color, Color> edit)
+        {
+            EditImpl("colors", _colors, startIndex, count, edit, null);
+        }
+        public void EditNormals(int startIndex, int count, Func<Vector3, Vector3> edit)
+        {
+            EditImpl("normals", _normals, startIndex, count, edit, null);
+        }
+        public void EditTangents(int startIndex, int count, Func<Vector4, Vector4> edit)
+        {
+            EditImpl("tangents", _tangents, startIndex, count, edit, null);
+        }
+        public void EditBoneWeights(int startIndex, int count, Func<IReadOnlyList<BoneWeight1>, IReadOnlyList<BoneWeight1>> edit)
+        {
+            EditImpl("bone weights", _boneWeightLists, startIndex, count, edit, list => list ?? Array.Empty<BoneWeight1>());
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void EditImpl<T>(string context, List<T>? targetList, int index, int count, Func<T, T> edit, Func<T, T>? secureValue)
+        {
+            if (targetList is null)
+            {
+                throw new InvalidOperationException($"Cannot edit {context}. Because it is not collecting attribute.");
+            }
+            if (index < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+            if (count < 0 || targetList.Count < index + count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                int currIndex = index + i;
+                T result = edit(targetList[currIndex]);
                 targetList[currIndex] = secureValue is not null ? secureValue(result) : result;
             }
         }
@@ -934,6 +1002,15 @@ namespace Jih.Unity.Infrastructure.Geometries
                 EditImpl("tex coords", _texCoords, startIndex, count, edit, null);
             }
 
+            public void EditTexCoords(Func<Vector2, Vector2> edit)
+            {
+                EditTexCoords(0, _texCoords.Count, edit);
+            }
+            public void EditTexCoords(int startIndex, int count, Func<Vector2, Vector2> edit)
+            {
+                EditImpl("tex coords", _texCoords, startIndex, count, edit, null);
+            }
+
             public void SecureTexCoordCapacity(int desiredCapacity)
             {
                 _texCoords.SecureCapacity(desiredCapacity);
@@ -1019,7 +1096,6 @@ namespace Jih.Unity.Infrastructure.Geometries
                 _ => throw new ArgumentOutOfRangeException(nameof(i)),
             };
         }
-
         public void SetUV(int i, Vector2 value)
         {
             switch (i)
@@ -1035,6 +1111,8 @@ namespace Jih.Unity.Infrastructure.Geometries
                 default: throw new ArgumentOutOfRangeException(nameof(i));
             }
         }
+
+        public const int MaxUVSetCount = 8;
     }
 
     [Flags]

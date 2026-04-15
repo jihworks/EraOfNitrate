@@ -54,7 +54,7 @@ namespace Jih.Unity.Infrastructure.HexaGrid
             return (HexaNeighborPosition)((int)position).GetPrevCircularIndex(6);
         }
         /// <summary>
-        /// Get point-symmetry position from center of the cell.
+        /// Get point-symmetry position from center of a cell.
         /// </summary>
         public static HexaNeighborPosition Flip(this HexaNeighborPosition position)
         {
@@ -65,23 +65,17 @@ namespace Jih.Unity.Infrastructure.HexaGrid
         {
             return _diagonalOffsets[(int)position];
         }
-        /// <summary>
-        /// Get next CW position.
-        /// </summary>
+        /// <inheritdoc cref="Next(HexaNeighborPosition)"/>
         public static HexaDiagonalPosition Next(this HexaDiagonalPosition position)
         {
             return (HexaDiagonalPosition)((int)position).GetNextCircularIndex(6);
         }
-        /// <summary>
-        /// Get next CCW position.
-        /// </summary>
+        /// <inheritdoc cref="Prev(HexaNeighborPosition)"/>
         public static HexaDiagonalPosition Prev(this HexaDiagonalPosition position)
         {
             return (HexaDiagonalPosition)((int)position).GetPrevCircularIndex(6);
         }
-        /// <summary>
-        /// Get point-symmetry position from center of the cell.
-        /// </summary>
+        /// <inheritdoc cref="Flip(HexaNeighborPosition)"/>
         public static HexaDiagonalPosition Flip(this HexaDiagonalPosition position)
         {
             return (HexaDiagonalPosition)(((int)position + 3) % 6);
@@ -91,53 +85,49 @@ namespace Jih.Unity.Infrastructure.HexaGrid
         {
             return _vertexOffsets[(int)position];
         }
+        /// <summary>
+        /// Get a radius angle degrees from given hexa-position in general cartesian space<i>(+Y up)</i>.
+        /// </summary>
+        /// <remarks>
+        /// Returned <c>0º</c> means <c>D90</c>.<br/>
+        /// The returned value is compatible with <see cref="MathEx.RadiusVector(float)"/>.
+        /// </remarks>
         public static float GetRadiusDegrees(this HexaVertexPosition position)
         {
             return ((int)position) * 60f - 90f;
         }
-        /// <summary>
-        /// Get next CW position.
-        /// </summary>
+        /// <inheritdoc cref="Next(HexaNeighborPosition)"/>
         public static HexaVertexPosition Next(this HexaVertexPosition position)
         {
             return (HexaVertexPosition)((int)position).GetNextCircularIndex(6);
         }
-        /// <summary>
-        /// Get next CCW position.
-        /// </summary>
+        /// <inheritdoc cref="Prev(HexaNeighborPosition)"/>
         public static HexaVertexPosition Prev(this HexaVertexPosition position)
         {
             return (HexaVertexPosition)((int)position).GetPrevCircularIndex(6);
         }
-        /// <summary>
-        /// Get point-symmetry position from center of the cell.
-        /// </summary>
+        /// <inheritdoc cref="Flip(HexaNeighborPosition)"/>
         public static HexaVertexPosition Flip(this HexaVertexPosition position)
         {
             return (HexaVertexPosition)(((int)position + 3) % 6);
         }
 
+        /// <inheritdoc cref="GetRadiusDegrees(HexaVertexPosition)"/>
         public static float GetRadiusDegrees(this HexaEdgePosition position)
         {
             return ((int)position) * 60f - 60f;
         }
-        /// <summary>
-        /// Get next CW position.
-        /// </summary>
+        /// <inheritdoc cref="Next(HexaNeighborPosition)"/>
         public static HexaEdgePosition Next(this HexaEdgePosition position)
         {
             return (HexaEdgePosition)((int)position).GetNextCircularIndex(6);
         }
-        /// <summary>
-        /// Get next CCW position.
-        /// </summary>
+        /// <inheritdoc cref="Prev(HexaNeighborPosition)"/>
         public static HexaEdgePosition Prev(this HexaEdgePosition position)
         {
             return (HexaEdgePosition)((int)position).GetPrevCircularIndex(6);
         }
-        /// <summary>
-        /// Get point-symmetry position from center of the cell.
-        /// </summary>
+        /// <inheritdoc cref="Flip(HexaNeighborPosition)"/>
         public static HexaEdgePosition Flip(this HexaEdgePosition position)
         {
             return (HexaEdgePosition)(((int)position + 3) % 6);
