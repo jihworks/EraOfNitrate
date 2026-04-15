@@ -36,21 +36,14 @@ namespace Jih.Unity.Infrastructure.HexaGrid
         /// </remarks>
         public HexaCell? LeftCell { get; internal set; }
 
+        public HexaCell LeftCellStrict => LeftCell ?? throw new InvalidOperationException($"Edge {Index} has not left-cell but getting.");
+
         public HexaEdge(HexaVertex vertex0, HexaVertex vertex1, HexaEdgeIndex index, HexaCell rightCell)
         {
             Vertex0 = vertex0;
             Vertex1 = vertex1;
             Index = index;
             RightCell = rightCell;
-        }
-
-        public bool Is0(HexaVertex vertex)
-        {
-            return Vertex0 == vertex;
-        }
-        public bool Is1(HexaVertex vertex)
-        {
-            return Vertex1 == vertex;
         }
 
         public bool IsSharedEdgeBetween(HexaCell cell0, HexaCell cell1)
@@ -67,36 +60,28 @@ namespace Jih.Unity.Infrastructure.HexaGrid
             return false;
         }
 
-        public bool TryGetIsCwOrder(HexaVertex vertex0, HexaVertex vertex1, out bool CwOrCcw)
+        public bool TryGetIsForward(HexaVertex vertex0, HexaVertex vertex1, out bool forwardOrReversed)
         {
             if (Vertex0 == vertex0 && Vertex1 == vertex1)
             {
-                CwOrCcw = true;
+                forwardOrReversed = true;
                 return true;
             }
             if (Vertex1 == vertex0 && Vertex0 == vertex1)
             {
-                CwOrCcw = false;
+                forwardOrReversed = false;
                 return true;
             }
-            CwOrCcw = default;
+            forwardOrReversed = default;
             return false;
         }
-        public bool IsCwOrder(HexaVertex vertex0, HexaVertex vertex1)
+        public bool IsForward(HexaVertex vertex0, HexaVertex vertex1)
         {
-            if (!TryGetIsCwOrder(vertex0, vertex1, out bool result))
+            if (!TryGetIsForward(vertex0, vertex1, out bool result))
             {
-                throw new InvalidOperationException($"Vertex {vertex0.Index} and vertex {vertex1.Index} is not element of the edge {Index}");
+                throw new InvalidOperationException($"Vertex {vertex0.Index} or vertex {vertex1.Index} is not element of the edge {Index}");
             }
             return result;
-        }
-
-        public void GetCwOrder(HexaCell cell, out HexaVertex vertex0, out HexaVertex vertex1)
-        {
-            if (!TryGetCwOrder(cell, out vertex0, out vertex1))
-            {
-                throw new ArgumentException($"The cell {cell.Coord} is not adjacent to edge {Index}.", nameof(cell));
-            }
         }
 
         public bool TryGetCwOrder(HexaCell cell, out HexaVertex vertex0, out HexaVertex vertex1)
@@ -117,6 +102,13 @@ namespace Jih.Unity.Infrastructure.HexaGrid
             vertex0 = Vertex0;
             vertex1 = Vertex1;
             return false;
+        }
+        public void GetCwOrder(HexaCell cell, out HexaVertex vertex0, out HexaVertex vertex1)
+        {
+            if (!TryGetCwOrder(cell, out vertex0, out vertex1))
+            {
+                throw new ArgumentException($"The cell {cell.Coord} is not adjacent to edge {Index}.", nameof(cell));
+            }
         }
 
         public IEnumerable<HexaCell> EnumerateCells()

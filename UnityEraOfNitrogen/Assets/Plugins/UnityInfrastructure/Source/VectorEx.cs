@@ -10,20 +10,28 @@ using UnityEngine;
 
 namespace Jih.Unity.Infrastructure
 {
-    public static class VectorEx
+    public static class Vector2Ex
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector2 CreateUniform2(float value)
+        public static Vector2 CreateUniform(float value)
         {
             return new Vector2(value, value);
         }
+    }
+
+    public static class Vector3Ex
+    {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector3 CreateUniform3(float value)
+        public static Vector3 CreateUniform(float value)
         {
             return new Vector3(value, value, value);
         }
+    }
+
+    public static class Vector4Ex
+    {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector4 CreateUniform4(float value)
+        public static Vector4 CreateUniform(float value)
         {
             return new Vector4(value, value, value, value);
         }
