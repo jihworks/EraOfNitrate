@@ -1,4 +1,4 @@
-# UnityInfrastructure
+# Unity Infrastructure
 
 ## Build
 
@@ -7,7 +7,16 @@
 Several types depends on external library.  
 Need to install additional packages before use them.
 
-#### a. Install from UPM with Name
+#### a. Install Unity Official Package
+
+1. Open **Unity Package Manager**_(UPM)_ from Unity top-menu `Window > Package Management > Package Manager`.
+1. Select `Unity Registry` in left panel.
+1. Find specific **package name** in the list. Can search the name with top search box.
+1. Select the item and select `Install` button.
+
+* Specific **package names** are listed in corresponding `README` file.
+
+#### b. Install from UPM with Name
 
 1. Open **Unity Package Manager**_(UPM)_ from Unity top-menu `Window > Package Management > Package Manager`.
 1. Select top `+` button and select `Install package by name...`.

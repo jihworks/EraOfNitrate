@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Jih.Unity.Infrastructure.Editor.Geometries
 {
-    public abstract class ConvexHullGeneratorWindowBase : EditorWindow
+    public abstract class BaseConvexHullGeneratorWindow : EditorWindow
     {
         Mesh? _sourceMesh;
 
