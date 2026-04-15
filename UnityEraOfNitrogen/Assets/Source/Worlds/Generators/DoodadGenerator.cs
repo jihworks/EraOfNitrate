@@ -65,7 +65,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 
         void GenerateInCell(GeneratorCell cell, List<GeneratorDoodad> provinceDoodads, DoodadRule rule)
         {
-            Vector3 unityCenter = ScreenToUnity(HexaToScreen(cell.Coord));
+            Vector3 unityCenter = HexaToUnity(cell.Coord);
 
             for (int i = 0; i < rule.RetryCount; i++)
             {
@@ -137,8 +137,8 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
 
                 HexaEdge edge = cell.GetEdge(neighborPosition.ConvertToEdge());
                 HexaVertex v0 = edge.Vertex0, v1 = edge.Vertex1;
-                Vector3 unityLocation0 = ScreenToUnity(HexaToScreen(v0.Coord));
-                Vector3 unityLocation1 = ScreenToUnity(HexaToScreen(v1.Coord));
+                Vector3 unityLocation0 = HexaToUnity(v0.Coord);
+                Vector3 unityLocation1 = HexaToUnity(v1.Coord);
 
                 Vector3 unityClosestPoint = MathEx.GetClosestPointOnLine(unityLocation0, unityLocation1, unityLocation);
                 if ((unityClosestPoint - unityLocation).sqrMagnitude < borderPushDistSq)

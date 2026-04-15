@@ -16,6 +16,17 @@ namespace Jih.Unity.EraOfNitrogen
     public static class CoordinateSpaceEx
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 HexaToUnity(HexaCoordF hexa, float unityY = 0f)
+        {
+            return ScreenToUnity(HexaToScreen(hexa), unityY);
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static HexaCoordF UnityToHexa(Vector3 unity)
+        {
+            return ScreenToHexa(UnityToScreen(unity));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 ScreenToUnity(Vector2 screen, float unityY = 0f)
         {
             return new Vector3(screen.x, unityY, -screen.y);

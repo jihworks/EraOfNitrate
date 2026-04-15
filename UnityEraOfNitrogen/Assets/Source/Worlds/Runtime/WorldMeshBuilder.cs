@@ -84,7 +84,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
         {
             MeshCollector meshCollector = chunk.MeshCollector;
 
-            VertexData[] cwCornersBuffer = new VertexData[6];
+            VertexData[] cwVerticesBuffer = new VertexData[6];
 
             foreach (var cell in chunk.Cells)
             {
@@ -103,21 +103,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 
                 Color32 biomeColor = assets.GetColor(province.Biome);
 
-                Vector2 screenCenterLocation = HexaToScreen(cell.Coord);
-                Vector3 unityCenterLocation = ScreenToUnity(screenCenterLocation);
-
-                VertexData center = new(unityCenterLocation, biomeColor);
-
-                for (int v = 0; v < 6; v++)
-                {
-                    HexaVertex vertex = cell.GetVertex((HexaVertexPosition)v);
-
-                    Vector3 unityVertexLocation = ScreenToUnity(HexaToScreen(vertex.Coord));
-
-                    cwCornersBuffer[v] = new VertexData(unityVertexLocation, biomeColor);
-                }
-
-                meshCollector.AppendNGon(center, cwCornersBuffer);
+                CollectCellHexagon(cell, meshCollector, biomeColor, cwVerticesBuffer);
             }
         }
 
@@ -131,6 +117,293 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             foreach (var chunk in landResults)
             {
                 string name = $"Land Mesh {chunk.ChunkX} x {chunk.ChunkY}";
+
+                Mesh mesh = chunk.MeshCollector.ToTrianglesMesh(true, true);
+                mesh.name = name;
+
+                GameObject meshObj = new() { name = name, };
+                meshObjs.Add(meshObj);
+
+                if (parent != null)
+                {
+                    meshObj.transform.SetParent(parent, false);
+                }
+
+                MeshFilter meshFilter = meshObj.AddComponent<MeshFilter>();
+                meshFilter.sharedMesh = mesh;
+
+                MeshRenderer meshRenderer = meshObj.AddComponent<MeshRenderer>();
+                meshRenderer.sharedMaterials = materials;
+                meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            }
+
+            return meshObjs;
+        }
+
+        public List<OceanChunkResult> BuildOcean()
+        {
+            if (!World.IsInitialized)
+            {
+                throw new InvalidOperationException("초기화되지 않은 월드로부터 메시를 빌드할 수 없음.");
+            }
+
+            const float ExpandLength = 1000f;
+
+            WorldGrid grid = World.MapGrid;
+
+            List<OceanChunkResult> chunks = new(_chunkCountX * _chunkCountY);
+            foreach (var ci in EnumerateChunks(_chunkCountX, _chunkCountY))
+            {
+                List<WorldCell> cells = new(ChunkSize * ChunkSize);
+
+                foreach (var index in ci.Cells)
+                {
+                    WorldCell? cell = grid.GetCell(index);
+                    if (cell is null)
+                    {
+                        continue;
+                    }
+                    if (cell.Tile.IsLand) // 바다인지 확인.
+                    {
+                        continue;
+                    }
+
+                    cells.Add(cell);
+                }
+
+                if (cells.Count > 0)
+                {
+                    OceanChunkResult oceanChunk = new(new MeshCollector(AdditionalAttributes.Color));
+                    chunks.Add(oceanChunk);
+
+                    CollectCellBasedOceanChunk(Assets, cells, oceanChunk);
+                }
+            }
+
+            Color oceanColor = Assets.GetOceanColor(false);
+
+            {
+                static void Append(MeshCollector collector, HexaVertex westVertex, HexaVertex centerVertex, HexaVertex eastVertex, Vector3 expandDir, float expandLength, Color color, bool flip)
+                {
+                    Vector3 wPoint = HexaToUnity(westVertex.Coord);
+                    Vector3 cPoint = HexaToUnity(centerVertex.Coord);
+                    Vector3 ePoint = HexaToUnity(eastVertex.Coord);
+
+                    Vector3 expandDelta = expandDir * expandLength;
+
+                    Vector3 wePoint = wPoint + expandDelta;
+                    Vector3 cePoint = cPoint + expandDelta;
+                    Vector3 eePoint = ePoint + expandDelta;
+
+                    VertexData wD = new(wPoint, color);
+                    VertexData cD = new(cPoint, color);
+                    VertexData eD = new(ePoint, color);
+
+                    VertexData weD = new(wePoint, color);
+                    VertexData ceD = new(cePoint, color);
+                    VertexData eeD = new(eePoint, color);
+
+                    if (flip)
+                    {
+                        collector.AppendQuad(wD, weD, cD, ceD);
+                        collector.AppendQuad(cD, ceD, eD, eeD);
+                    }
+                    else
+                    {
+                        collector.AppendQuad(weD, wD, ceD, cD);
+                        collector.AppendQuad(ceD, cD, eeD, eD);
+                    }
+                }
+
+                MeshCollector upperCollector = new(AdditionalAttributes.Color);
+                MeshCollector lowerCollector = new(AdditionalAttributes.Color);
+                for (int x = 0; x < grid.Width; x++)
+                {
+                    {
+                        WorldCell cell = grid[new HexaIndex(x, 0)];
+
+                        HexaVertex v300 = cell.GetVertex(HexaVertexPosition.D300);
+                        HexaVertex v0 = cell.GetVertex(HexaVertexPosition.D0);
+                        HexaVertex v60 = cell.GetVertex(HexaVertexPosition.D60);
+
+                        Append(upperCollector, v300, v0, v60, Vector3.forward, ExpandLength, oceanColor, false);
+                    }
+                    {
+                        WorldCell cell = grid[new HexaIndex(x, grid.Height - 1)];
+
+                        HexaVertex v240 = cell.GetVertex(HexaVertexPosition.D240);
+                        HexaVertex v180 = cell.GetVertex(HexaVertexPosition.D180);
+                        HexaVertex v120 = cell.GetVertex(HexaVertexPosition.D120);
+
+                        Append(lowerCollector, v240, v180, v120, Vector3.back, ExpandLength, oceanColor, true);
+                    }
+                }
+                chunks.Add(new OceanChunkResult(upperCollector));
+                chunks.Add(new OceanChunkResult(lowerCollector));
+            }
+            {
+                static void Append(MeshCollector collector, HexaVertex northVertex, HexaVertex southVertex, Vector3 expandDir, float expandLength, Color color, bool flip)
+                {
+                    Vector3 nPoint = HexaToUnity(northVertex.Coord);
+                    Vector3 sPoint = HexaToUnity(southVertex.Coord);
+
+                    Vector3 expandDelta = expandDir * expandLength;
+
+                    Vector3 nePoint = nPoint + expandDelta;
+                    Vector3 sePoint = sPoint + expandDelta;
+
+                    VertexData nD = new(nPoint, color);
+                    VertexData sD = new(sPoint, color);
+
+                    VertexData neD = new(nePoint, color);
+                    VertexData seD = new(sePoint, color);
+
+                    if (flip)
+                    {
+                        collector.AppendQuad(seD, neD, sD, nD);
+                    }
+                    else
+                    {
+                        collector.AppendQuad(neD, seD, nD, sD);
+                    }
+                }
+
+                MeshCollector leftCollector = new(AdditionalAttributes.Color);
+                MeshCollector rightCollector = new(AdditionalAttributes.Color);
+                for (int y = 0; y < grid.Height; y++)
+                {
+                    {
+                        WorldCell cell = grid[new HexaIndex(0, y)];
+
+                        HexaVertex v300 = cell.GetVertex(HexaVertexPosition.D300);
+                        HexaVertex v240 = cell.GetVertex(HexaVertexPosition.D240);
+
+                        Append(leftCollector, v300, v240, Vector3.left, ExpandLength, oceanColor, false);
+
+                        if (y < grid.Height - 1)
+                        {
+                            HexaVertex v180 = cell.GetVertex(HexaVertexPosition.D180);
+
+                            Append(leftCollector, v240, v180, Vector3.left, ExpandLength, oceanColor, false);
+                        }
+                    }
+                    {
+                        WorldCell cell = grid[new HexaIndex(grid.Width - 1, y)];
+
+                        HexaVertex v60 = cell.GetVertex(HexaVertexPosition.D60);
+                        HexaVertex v120 = cell.GetVertex(HexaVertexPosition.D120);
+
+                        Append(rightCollector, v60, v120, Vector3.right, ExpandLength, oceanColor, true);
+
+                        if (y < grid.Height - 1)
+                        {
+                            HexaVertex v180 = cell.GetVertex(HexaVertexPosition.D180);
+
+                            Append(rightCollector, v120, v180, Vector3.right, ExpandLength, oceanColor, true);
+                        }
+                    }
+                }
+                chunks.Add(new OceanChunkResult(leftCollector));
+                chunks.Add(new OceanChunkResult(rightCollector));
+            }
+            {
+                static void Append(MeshCollector collector, HexaVertex vertex, Vector3 expandDirX, Vector3 expandDirY, float expandLength, Color color, bool flipX, bool flipY)
+                {
+                    Vector3 deltaX = expandDirX * expandLength;
+                    Vector3 deltaY = expandDirY * expandLength;
+
+                    Vector3 rbPoint = HexaToUnity(vertex.Coord);
+                    Vector3 lbPoint = rbPoint + deltaX;
+                    Vector3 ltPoint = lbPoint + deltaY;
+                    Vector3 rtPoint = ltPoint - deltaX;
+
+                    VertexData ltD = new(ltPoint, color);
+                    VertexData rtD = new(rtPoint, color);
+                    VertexData lbD = new(lbPoint, color);
+                    VertexData rbD = new(rbPoint, color);
+
+                    if (!flipX && !flipY)
+                    {
+                        collector.AppendQuad(ltD, lbD, rtD, rbD);
+                    }
+                    else if (flipX && !flipY)
+                    {
+                        collector.AppendQuad(rtD, rbD, ltD, lbD);
+                    }
+                    else if (!flipX && flipY)
+                    {
+                        collector.AppendQuad(lbD, ltD, rbD, rtD);
+                    }
+                    else
+                    {
+                        collector.AppendQuad(rbD, rtD, lbD, ltD);
+                    }
+                }
+
+                MeshCollector ltCollector = new(AdditionalAttributes.Color);
+                MeshCollector rtCollector = new(AdditionalAttributes.Color);
+                MeshCollector lbCollector = new(AdditionalAttributes.Color);
+                MeshCollector rbCollector = new(AdditionalAttributes.Color);
+                {
+                    HexaCell cell = grid[new HexaIndex(0, 0)];
+                    HexaVertex vertex = cell.GetVertex(HexaVertexPosition.D300);
+                    Append(ltCollector, vertex, Vector3.left, Vector3.forward, ExpandLength, oceanColor, false, false);
+                }
+                {
+                    HexaCell cell = grid[new HexaIndex(grid.Width - 1, 0)];
+                    HexaVertex vertex = cell.GetVertex(HexaVertexPosition.D60);
+                    Append(rtCollector, vertex, Vector3.right, Vector3.forward, ExpandLength, oceanColor, true, false);
+                }
+                {
+                    HexaCell cell = grid[new HexaIndex(0, grid.Height - 1)];
+                    HexaVertex vertex = cell.GetVertex(HexaVertexPosition.D240);
+                    Append(lbCollector, vertex, Vector3.left, Vector3.back, ExpandLength, oceanColor, false, true);
+                }
+                {
+                    HexaCell cell = grid[new HexaIndex(grid.Width - 1, grid.Height - 1)];
+                    HexaVertex vertex = cell.GetVertex(HexaVertexPosition.D120);
+                    Append(rbCollector, vertex, Vector3.right, Vector3.back, ExpandLength, oceanColor, true, true);
+                }
+                chunks.Add(new OceanChunkResult(ltCollector));
+                chunks.Add(new OceanChunkResult(rtCollector));
+                chunks.Add(new OceanChunkResult(lbCollector));
+                chunks.Add(new OceanChunkResult(rbCollector));
+            }
+
+            return chunks;
+        }
+
+        static void CollectCellBasedOceanChunk(Assets assets, IReadOnlyList<WorldCell> cells, in OceanChunkResult chunk)
+        {
+            MeshCollector meshCollector = chunk.MeshCollector;
+
+            VertexData[] cwVerticesBuffer = new VertexData[6];
+
+            foreach (var cell in cells)
+            {
+                Tile tile = cell.Tile;
+                if (tile.IsLand)
+                {
+                    throw new InvalidOperationException($"바다가 아닌 타일 {cell.Coord} 로부터 바다 메시를 생성할 수 없음.");
+                }
+
+                Color32 oceanColor = assets.GetOceanColor(tile.IsNearOcean);
+
+                CollectCellHexagon(cell, meshCollector, oceanColor, cwVerticesBuffer);
+            }
+        }
+
+        public List<GameObject> Spawn(IReadOnlyList<OceanChunkResult> oceanResults, Transform? parent)
+        {
+            Material oceanMaterial = Assets.OceanMaterial;
+            Material[] materials = new Material[] { oceanMaterial, };
+
+            List<GameObject> meshObjs = new(oceanResults.Count);
+
+            int number = 1;
+            foreach (var chunk in oceanResults)
+            {
+                string name = $"Ocean Mesh " + number++;
 
                 Mesh mesh = chunk.MeshCollector.ToTrianglesMesh(true, true);
                 mesh.name = name;
@@ -251,8 +524,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                     Quaternion rotation = Quaternion.AngleAxis(zRotation, Vector3.up);
 
                     HexaCoord coord = roadBlock.Cell.Coord;
-                    Vector2 screenLocation = HexaToScreen(coord);
-                    Vector3 unityLocation = ScreenToUnity(screenLocation);
+                    Vector3 unityLocation = HexaToUnity(coord);
 
                     meshObj = new GameObject() { name = "Road Block " + coord, };
 
@@ -395,11 +667,11 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 // 일자 부분.
                 foreach (var (cell, edge) in borderEdges)
                 {
-                    Vector3 cellCenter = ScreenToUnity(HexaToScreen(cell.Coord));
+                    Vector3 cellCenter = HexaToUnity(cell.Coord);
 
                     edge.GetCwOrder(cell, out HexaVertex vertex0, out HexaVertex vertex1);
-                    Vector3 v0Point = ScreenToUnity(HexaToScreen(vertex0.Coord));
-                    Vector3 v1Point = ScreenToUnity(HexaToScreen(vertex1.Coord));
+                    Vector3 v0Point = HexaToUnity(vertex0.Coord);
+                    Vector3 v1Point = HexaToUnity(vertex1.Coord);
 
                     Vector3 v0ToCenterDir = (cellCenter - v0Point).normalized;
                     Vector3 v1ToCenterDir = (cellCenter - v1Point).normalized;
@@ -465,11 +737,11 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                             leftCell = edge.RightCell;
                         }
 
-                        Vector3 v0Point = ScreenToUnity(HexaToScreen(vertex0.Coord));
-                        Vector3 v1Point = ScreenToUnity(HexaToScreen(vertex1.Coord));
+                        Vector3 v0Point = HexaToUnity(vertex0.Coord);
+                        Vector3 v1Point = HexaToUnity(vertex1.Coord);
 
-                        Vector3 rightPoint = ScreenToUnity(HexaToScreen(rightCell.Coord));
-                        Vector3 leftPoint = ScreenToUnity(HexaToScreen(leftCell.Coord));
+                        Vector3 rightPoint = HexaToUnity(rightCell.Coord);
+                        Vector3 leftPoint = HexaToUnity(leftCell.Coord);
 
                         Vector3 centerDir = (v1Point - v0Point).normalized;
                         Vector3 rightDir = (rightPoint - v0Point).normalized;
@@ -590,6 +862,24 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             }
         }
 
+        static void CollectCellHexagon(WorldCell cell, MeshCollector collector, Color color, VertexData[] cwVerticesBuffer)
+        {
+            Vector3 centerLocation = HexaToUnity(cell.Coord);
+
+            VertexData center = new(centerLocation, color);
+
+            for (int v = 0; v < 6; v++)
+            {
+                HexaVertex vertex = cell.GetVertex((HexaVertexPosition)v);
+
+                Vector3 vertexLocation = HexaToUnity(vertex.Coord);
+
+                cwVerticesBuffer[v] = new VertexData(vertexLocation, color);
+            }
+
+            collector.AppendNGon(center, cwVerticesBuffer);
+        }
+
         public readonly struct LandChunkResult
         {
             public readonly int ChunkX, ChunkY;
@@ -604,6 +894,16 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 GridX = gridX;
                 GridY = gridY;
                 Cells = cells;
+                MeshCollector = meshCollector;
+            }
+        }
+
+        public readonly struct OceanChunkResult
+        {
+            public readonly MeshCollector MeshCollector;
+
+            public OceanChunkResult(MeshCollector meshCollector)
+            {
                 MeshCollector = meshCollector;
             }
         }

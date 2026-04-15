@@ -111,6 +111,15 @@ namespace Jih.Unity.EraOfNitrogen
             Debug.Log($"땅 스폰: {stopwatch.ElapsedMilliseconds}ms");
             stopwatch.Restart();
             {
+                GameObject oceansRoot = new() { name = "Oceans Root", };
+
+                var chunks = worldMeshBuilder.BuildOcean();
+                _ = worldMeshBuilder.Spawn(chunks, oceansRoot.transform);
+            }
+            stopwatch.Stop();
+            Debug.Log($"바다 스폰: {stopwatch.ElapsedMilliseconds}ms");
+            stopwatch.Restart();
+            {
                 var groups = worldMeshBuilder.BuildDoodads();
                 var clusters = worldMeshBuilder.Spawn(groups);
 
