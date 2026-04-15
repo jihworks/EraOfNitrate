@@ -278,7 +278,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 
                     collisionShape.Append(meshCollector);
                     collisionShape.WorldTransform = worldMatrix;
-                    collisionShape.Freeze();
+                    //collisionShape.Freeze(); // 노트 260415 참고.
                 }
 
                 RoadElement roadElement = new(roadBlock.Tile, new List<GameObject>() { meshObj, }, collisionShape);
@@ -448,20 +448,20 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 
                         HexaVertex vertex0, vertex1;
                         HexaCell rightCell, leftCell;
-                        if (edge.Is0(vertex))
+                        if (edge.Vertex0 == vertex)
                         {
                             vertex0 = edge.Vertex0;
                             vertex1 = edge.Vertex1;
 
                             rightCell = edge.RightCell;
-                            leftCell = edge.LeftCell ?? throw new InvalidOperationException("논리적으로 불가능함.");
+                            leftCell = edge.LeftCellStrict;
                         }
                         else // 반대로 연결된 경우, 뒤집음.
                         {
                             vertex0 = edge.Vertex1;
                             vertex1 = edge.Vertex0;
 
-                            rightCell = edge.LeftCell ?? throw new InvalidOperationException("논리적으로 불가능함.");
+                            rightCell = edge.LeftCellStrict;
                             leftCell = edge.RightCell;
                         }
 

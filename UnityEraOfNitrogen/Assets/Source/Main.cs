@@ -75,7 +75,7 @@ namespace Jih.Unity.EraOfNitrogen
             SaveSession saveSession = new();
 
             MapGenerator mapGenerator = new();
-            mapGenerator.Execute();
+            mapGenerator.Execute(337296);
 
             Map? map = mapGenerator.ResultMap;
             if (map is null)
@@ -239,11 +239,7 @@ namespace Jih.Unity.EraOfNitrogen
 
         private void OnDestroy()
         {
-            foreach (var doodadCluster in _doodadClusters)
-            {
-                doodadCluster.Dispose();
-            }
-            _doodadClusters.Clear();
+            DisposableEx.DisposeAll(_doodadClusters);
         }
     }
 }

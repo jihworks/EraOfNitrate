@@ -48,7 +48,8 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         [JsonIgnore] WorldGrid? _worldGrid;
         [JsonIgnore] public WorldGrid MapGrid => _worldGrid.ThrowIfNull(nameof(MapGrid));
 
-        [JsonIgnore] readonly CollisionWorld _collisionWorld = new(cellSize: 1f);
+        // 노트 260415 참고.
+        [JsonIgnore] readonly CollisionWorld _collisionWorld = new(cellSize: 0.5f);
         [JsonIgnore] public CollisionWorld CollisionWorld => _collisionWorld;
 
         [JsonConstructor]

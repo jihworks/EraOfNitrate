@@ -60,7 +60,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
 
                     collision.Append(convexHullPoints, convexHullIndices);
                     collision.WorldTransform = element.Matrix;
-                    collision.Freeze();
+                    collision.Freeze(); // 노트 260415 참고.
 
                     _collisions.Add(collision);
                 }

@@ -8,6 +8,7 @@
 #nullable enable
 
 using Jih.Unity.EraOfNitrogen.Worlds.Generators;
+using Jih.Unity.Infrastructure.Json;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -158,7 +159,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds
         [JsonProperty] public DoodadType Type { get; private set; }
         [JsonProperty] public int Variant { get; private set; }
 
-        [JsonProperty] public Float3 UnityLocation { get; private set; }
+        [JsonProperty] public JsonSaveVector3 UnityLocation { get; private set; }
         [JsonProperty] public float UnityRotationY { get; private set; }
         [JsonProperty] public float UnityScale { get; private set; }
 

@@ -30,7 +30,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
             return Matrix4x4.TRS(
                 UnityLocation,
                 Quaternion.AngleAxis(UnityRotationY, Vector3.up),
-                VectorEx.CreateUniform3(UnityScale));
+                Vector3Ex.CreateUniform(UnityScale));
         }
     }
 }

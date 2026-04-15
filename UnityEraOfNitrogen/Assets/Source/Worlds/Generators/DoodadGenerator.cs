@@ -10,7 +10,6 @@
 using Jih.Unity.Infrastructure;
 using Jih.Unity.Infrastructure.HexaGrid;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using static Jih.Unity.EraOfNitrogen.CoordinateSpaceEx;
 

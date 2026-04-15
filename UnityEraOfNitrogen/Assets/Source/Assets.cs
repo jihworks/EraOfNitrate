@@ -165,10 +165,10 @@ namespace Jih.Unity.EraOfNitrogen
                 Add(RoadBranch.Branch012345, _mesh012345);
             }
 
-            var (mesh, resultCollector) = _map[branch];
+            var (resultMesh, resultCollector) = _map[branch];
 
             collector = resultCollector;
-            return mesh;
+            return resultMesh;
         }
     }
 }

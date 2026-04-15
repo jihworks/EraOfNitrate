@@ -8,25 +8,30 @@
 #nullable enable
 
 using Jih.Unity.Infrastructure.HexaGrid;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace Jih.Unity.EraOfNitrogen
 {
     public static class CoordinateSpaceEx
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 ScreenToUnity(Vector2 screen, float unityY = 0f)
         {
             return new Vector3(screen.x, unityY, -screen.y);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 UnityToScreen(Vector3 unity)
         {
             return new Vector2(unity.x, -unity.z);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 HexaToScreen(HexaCoordF h)
         {
             return _hexaOrientation.HexaToScreen(h);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static HexaCoordF ScreenToHexa(Vector2 p)
         {
             return _hexaOrientation.ScreenToHexa(p);
