@@ -11,17 +11,11 @@ using UnityEngine;
 
 namespace Jih.Unity.Infrastructure.Collections
 {
-    /// <remarks>
-    /// This class cannot edit in the inspector to avoid key-value pair mismatch.
-    /// </remarks>
     [Serializable]
     public class SerializableDictionary<TKey, TValue> : Dictionary<TKey, TValue>, ISerializationCallbackReceiver
     {
-        [SerializeField, HideInInspector]
-        private List<TKey> _keys = new();
-
-        [SerializeField, HideInInspector]
-        private List<TValue> _values = new();
+        [SerializeField] List<TKey> _keys = new();
+        [SerializeField] List<TValue> _values = new();
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {

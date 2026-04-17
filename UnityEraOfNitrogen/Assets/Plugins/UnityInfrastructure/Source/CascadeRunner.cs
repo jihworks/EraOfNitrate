@@ -12,7 +12,13 @@ namespace Jih.Unity.Infrastructure
 {
     public class CascadeRunner
     {
-        public IReadOnlyList<CascadeRun>? Runs { get; set; }
+        public IReadOnlyList<CascadeRun>? Runs
+        {
+            get;
+#if INFRASTRUCTURE_USE_EXTERNAL_INIT || NET5_0_OR_GREATER
+            init;
+#endif
+        }
 
         public bool IsRunning { get; set; }
 
