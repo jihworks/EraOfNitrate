@@ -28,4 +28,7 @@ namespace Jih.Unity.Infrastructure.HexaGrid
     /// Should be bigger or eqaul than 0. It will be maximized by 0. Lower value is better.
     /// </remarks>
     public delegate int HexaPathHeuristic(HexaCell goal, HexaCell next);
+
+    public delegate IEnumerable<HexaCell> HexaAreaAccess(HexaCell start, HexaCell current);
+    public delegate bool HexaAreaExpand(HexaCell start, HexaCell current, HexaCell next);
 }

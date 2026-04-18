@@ -439,7 +439,7 @@ namespace Jih.Unity.Infrastructure.HexaGrid
 
                     if (next.Map != this)
                     {
-                        throw new InvalidOperationException($"The neighbor cell '{next.Coord}' does not exist in the map.");
+                        throw new InvalidOperationException($"The next accessing cell '{next.Coord}' does not exist in the map.");
                     }
 
                     int newCost = costs[current] + Math.Max(1, cost(current, next))/*Must not smaller than 1*/;
@@ -457,6 +457,127 @@ namespace Jih.Unity.Infrastructure.HexaGrid
 
             result.IsSucceed = false;
             return false;
+        }
+
+        public void CollectArea(HexaCell start, HexaAreaResult result, HexaAreaAccess? access, HexaAreaExpand? expand, bool includeStart = true)
+        {
+            if (start.Map != this)
+            {
+                throw new InvalidOperationException($"The start cell '{start.Coord}' does not exist in the map.");
+            }
+
+            result.Clear();
+
+            Queue<HexaCell> frontiers = result.Frontiers;
+            HashSet<HexaCell> visited = result.Visited;
+            List<HexaCell> resultCells = result.ResultCells;
+
+            access ??= (start, current) => current.EnumerateNeighbors();
+            expand ??= (start, current, next) => true;
+
+            frontiers.Enqueue(start);
+            visited.Add(start);
+            if (includeStart)
+            {
+                resultCells.Add(start);
+            }
+
+            while (frontiers.Count > 0)
+            {
+                HexaCell current = frontiers.Dequeue();
+
+                foreach (var next in access(start, current))
+                {
+                    if (next == current)
+                    {
+                        continue;
+                    }
+
+                    if (next.Map != this)
+                    {
+                        throw new InvalidOperationException($"The next accessing cell '{next.Coord}' does not exist in the map.");
+                    }
+
+                    if (!visited.Add(next))
+                    {
+                        continue;
+                    }
+
+                    if (expand(start, current, next))
+                    {
+                        resultCells.Add(next);
+                        frontiers.Enqueue(next);
+                    }
+                }
+            }
+        }
+
+        public void CollectMultiAreas(IEnumerable<HexaCell> startingCells, HexaMultiAreasResult result, HexaAreaAccess? access, HexaAreaExpand? expand)
+        {
+            result.Clear();
+
+            Queue<MultiAreaFrontier> frontiers = result.Frontiers;
+            Dictionary<HexaCell, HexaCell> cellToStartingCells = result.CellToStartingCells;
+
+            access ??= (start, current) => current.EnumerateNeighbors();
+            expand ??= (start, current, next) => true;
+
+            foreach (var startingCell in startingCells)
+            {
+                if (startingCell.Map != this)
+                {
+                    throw new InvalidOperationException($"The starting cell '{startingCell.Coord}' does not exist in the map.");
+                }
+
+                if (cellToStartingCells.TryAdd(startingCell, startingCell))
+                {
+                    frontiers.Enqueue(new MultiAreaFrontier(startingCell, startingCell));
+                }
+            }
+
+            while (frontiers.Count > 0)
+            {
+                MultiAreaFrontier frontier = frontiers.Dequeue();
+                HexaCell current = frontier.Cell;
+                HexaCell startingCell = frontier.StartingCell;
+
+                foreach (var next in access(startingCell, current))
+                {
+                    if (next == current)
+                    {
+                        continue;
+                    }
+
+                    if (next.Map != this)
+                    {
+                        throw new InvalidOperationException($"The next accessing cell '{next.Coord}' does not exist in the map.");
+                    }
+
+                    // Check already visited.
+                    if (cellToStartingCells.ContainsKey(next))
+                    {
+                        continue;
+                    }
+
+                    if (expand(startingCell, current, next))
+                    {
+                        cellToStartingCells.Add(next, startingCell);
+                        frontiers.Enqueue(new MultiAreaFrontier(next, startingCell));
+                    }
+                }
+            }
+        }
+
+        internal readonly struct MultiAreaFrontier
+        {
+            public readonly HexaCell Cell;
+            public readonly HexaCell StartingCell;
+
+            public MultiAreaFrontier(HexaCell cell, HexaCell startingCell)
+            {
+                Cell = cell;
+                StartingCell = startingCell;
+            }
         }
     }
 }

@@ -23,6 +23,9 @@ namespace Jih.Unity.Infrastructure.HexaGrid
         internal PriorityQueue<HexaCell, int> Frontiers { get; } = new();
         internal HashSet<HexaCell> Visited { get; } = new();
 
+        /// <summary>
+        /// Including start cell and goal cell.
+        /// </summary>
         public List<HexaCell> ResultPath { get; } = new();
         public bool IsSucceed { get; internal set; }
 
