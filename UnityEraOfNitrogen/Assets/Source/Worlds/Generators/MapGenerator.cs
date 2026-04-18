@@ -44,7 +44,7 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Generators
             stopwatch.Restart();
 
             List<GeneratorCell> landCells = pangaeaGenerator.ResultLandCells;
-            List<GeneratorCell> oceanCells = pangaeaGenerator.ResultOceanCells;
+            //List<GeneratorCell> oceanCells = pangaeaGenerator.ResultOceanCells;
 
             ProvinceGenerator provinceGenerator = new(ProvinceGenerator.Settings.Default, random, grid, landCells);
             provinceGenerator.Execute();

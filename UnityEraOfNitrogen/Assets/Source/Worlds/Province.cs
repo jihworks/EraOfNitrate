@@ -9,7 +9,6 @@
 
 using Jih.Unity.EraOfNitrogen.Worlds.Runtime;
 using Jih.Unity.Infrastructure;
-using Jih.Unity.Infrastructure.HexaGrid;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;

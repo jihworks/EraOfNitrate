@@ -635,8 +635,10 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 throw new InvalidOperationException("초기화되지 않은 월드로부터 프로빈스 경계를 빌드할 수 없음.");
             }
 
-            const float SolidThickness = 0.03f;
-            const float FallOffThickness = 0.06f;
+            const float GapThickness = 0.03f;
+            const float OuterSolidThickness = 0.03f;
+            const float InnerSolidThickness = 0.01f;
+            const float InnerFallOffThickness = 0.04f;
 
             List<ProvinceBorderResult> result = new(World.Provinces.Count);
             foreach (var province in World.Provinces)
@@ -665,6 +667,10 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                 MeshCollector collector = new(AdditionalAttributes.Color);
 
                 // 일자 부분.
+                // R = 외부선 컬러, G = 내부선 컬러.
+                Color outerSolidColor = new(1f, 0f, 0f, 1f);
+                Color innerSolidColor = new(0f, 1f, 0f, 1f);
+                Color innerFalloffColor = new(0f, 1f, 0f, 0f);
                 foreach (var (cell, edge) in borderEdges)
                 {
                     Vector3 cellCenter = HexaToUnity(cell.Coord);
@@ -676,27 +682,37 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                     Vector3 v0ToCenterDir = (cellCenter - v0Point).normalized;
                     Vector3 v1ToCenterDir = (cellCenter - v1Point).normalized;
 
-                    Vector3 v0MidPoint = v0Point + v0ToCenterDir * SolidThickness;
-                    Vector3 v1MidPoint = v1Point + v1ToCenterDir * SolidThickness;
+                    Vector3 outerStart0 = v0Point + v0ToCenterDir * GapThickness;
+                    Vector3 outerStart1 = v1Point + v1ToCenterDir * GapThickness;
 
-                    Vector3 v0EndPoint = v0MidPoint + v0ToCenterDir * FallOffThickness;
-                    Vector3 v1EndPoint = v1MidPoint + v1ToCenterDir * FallOffThickness;
+                    Vector3 outerEnd0 = outerStart0 + v0ToCenterDir * OuterSolidThickness;
+                    Vector3 outerEnd1 = outerStart1 + v1ToCenterDir * OuterSolidThickness;
 
-                    // R = 솔리드 컬러, G = 폴오프 컬러.
-                    VertexData v0SolidD = new(v0Point, new Color(1f, 0f, 0f, 1f));
-                    VertexData v1SolidD = new(v1Point, new Color(1f, 0f, 0f, 1f));
+                    Vector3 innerMid0 = outerEnd0 + v0ToCenterDir * InnerSolidThickness;
+                    Vector3 innerMid1 = outerEnd1 + v1ToCenterDir * InnerSolidThickness;
 
-                    VertexData v0MidSolidD = new(v0MidPoint, new Color(1f, 0f, 0f, 1f));
-                    VertexData v1MidSolidD = new(v1MidPoint, new Color(1f, 0f, 0f, 1f));
+                    Vector3 innerEnd0 = innerMid0 + v0ToCenterDir * InnerFallOffThickness;
+                    Vector3 innerEnd1 = innerMid1 + v1ToCenterDir * InnerFallOffThickness;
 
-                    VertexData v0MidFalloffD = new(v0MidPoint, new Color(0f, 1f, 0f, 1f));
-                    VertexData v1MidFalloffD = new(v1MidPoint, new Color(0f, 1f, 0f, 1f));
+                    VertexData outerStart0D = new(outerStart0, outerSolidColor);
+                    VertexData outerStart1D = new(outerStart1, outerSolidColor);
 
-                    VertexData v0EndFalloffD = new(v0EndPoint, new Color(0f, 1f, 0f, 0f));
-                    VertexData v1EndFalloffD = new(v1EndPoint, new Color(0f, 1f, 0f, 0f));
+                    VertexData outerEnd0D = new(outerEnd0, outerSolidColor);
+                    VertexData outerEnd1D = new(outerEnd1, outerSolidColor);
 
-                    collector.AppendQuad(v0EndFalloffD, v1EndFalloffD, v0MidFalloffD, v1MidFalloffD);
-                    collector.AppendQuad(v0MidSolidD, v1MidSolidD, v0SolidD, v1SolidD);
+                    VertexData innerStart0D = new(outerEnd0, innerSolidColor);
+                    VertexData innerStart1D = new(outerEnd1, innerSolidColor);
+
+                    VertexData innerMid0D = new(innerMid0, innerSolidColor);
+                    VertexData innerMid1D = new(innerMid1, innerSolidColor);
+
+                    VertexData innerEnd0D = new(innerEnd0, innerFalloffColor);
+                    VertexData innerEnd1D = new(innerEnd1, innerFalloffColor);
+
+                    collector.AppendQuad(innerEnd0D, innerEnd1D, innerMid0D, innerMid1D);
+                    collector.AppendQuad(innerMid0D, innerMid1D, innerStart0D, innerStart1D);
+
+                    collector.AppendQuad(outerEnd0D, outerEnd1D, outerStart0D, outerStart1D);
                 }
                 // 바깥쪽 꺾인 부분.
                 HashSet<HexaCell> borderCells = new(borderEdges.Count);
@@ -747,33 +763,49 @@ namespace Jih.Unity.EraOfNitrogen.Worlds.Runtime
                         Vector3 rightDir = (rightPoint - v0Point).normalized;
                         Vector3 leftDir = (leftPoint - v0Point).normalized;
 
-                        Vector3 rightMidPoint = v0Point + rightDir * SolidThickness;
-                        Vector3 rightEndPoint = rightMidPoint + rightDir * FallOffThickness;
+                        Vector3 outerStartR = v0Point + rightDir * GapThickness;
+                        Vector3 outerStartC = v0Point + centerDir * GapThickness;
+                        Vector3 outerStartL = v0Point + leftDir * GapThickness;
 
-                        Vector3 centerMidPoint = v0Point + centerDir * SolidThickness;
-                        Vector3 centerEndPoint = centerMidPoint + centerDir * FallOffThickness;
+                        Vector3 outerEndR = outerStartR + rightDir * OuterSolidThickness;
+                        Vector3 outerEndC = outerStartC + centerDir * OuterSolidThickness;
+                        Vector3 outerEndL = outerStartL + leftDir * OuterSolidThickness;
 
-                        Vector3 leftMidPoint = v0Point + leftDir * SolidThickness;
-                        Vector3 leftEndPoint = leftMidPoint + leftDir * FallOffThickness;
+                        Vector3 innerMidR = outerEndR + rightDir * InnerSolidThickness;
+                        Vector3 innerMidC = outerEndC + centerDir * InnerSolidThickness;
+                        Vector3 innerMidL = outerEndL + leftDir * InnerSolidThickness;
 
-                        VertexData v0SolidD = new(v0Point, new Color(1f, 0f, 0f, 1f));
+                        Vector3 innerEndR = innerMidR + rightDir * InnerFallOffThickness;
+                        Vector3 innerEndC = innerMidC + centerDir * InnerFallOffThickness;
+                        Vector3 innerEndL = innerMidL + leftDir * InnerFallOffThickness;
 
-                        VertexData rightMidSolidD = new(rightMidPoint, new Color(1f, 0f, 0f, 1f));
-                        VertexData rightMidFalloffD = new(rightMidPoint, new Color(0f, 1f, 0f, 1f));
-                        VertexData rightEndFalloffD = new(rightEndPoint, new Color(0f, 1f, 0f, 0f));
+                        VertexData outerStartRD = new(outerStartR, outerSolidColor);
+                        VertexData outerStartCD = new(outerStartC, outerSolidColor);
+                        VertexData outerStartLD = new(outerStartL, outerSolidColor);
 
-                        VertexData centerMidSolidD = new(centerMidPoint, new Color(1f, 0f, 0f, 1f));
-                        VertexData centerMidFalloffD = new(centerMidPoint, new Color(0f, 1f, 0f, 1f));
-                        VertexData centerEndFalloffD = new(centerEndPoint, new Color(0f, 1f, 0f, 0f));
+                        VertexData outerEndRD = new(outerEndR, outerSolidColor);
+                        VertexData outerEndCD = new(outerEndC, outerSolidColor);
+                        VertexData outerEndLD = new(outerEndL, outerSolidColor);
 
-                        VertexData leftMidSolidD = new(leftMidPoint, new Color(1f, 0f, 0f, 1f));
-                        VertexData leftMidFalloffD = new(leftMidPoint, new Color(0f, 1f, 0f, 1f));
-                        VertexData leftEndFalloffD = new(leftEndPoint, new Color(0f, 1f, 0f, 0f));
+                        VertexData innerStartRD = new(outerEndR, innerSolidColor);
+                        VertexData innerStartCD = new(outerEndC, innerSolidColor);
+                        VertexData innerStartLD = new(outerEndL, innerSolidColor);
 
-                        collector.AppendQuad(rightEndFalloffD, centerEndFalloffD, rightMidFalloffD, centerMidFalloffD);
-                        collector.AppendQuad(centerEndFalloffD, leftEndFalloffD, centerMidFalloffD, leftMidFalloffD);
+                        VertexData innerMidRD = new(innerMidR, innerSolidColor);
+                        VertexData innerMidCD = new(innerMidC, innerSolidColor);
+                        VertexData innerMidLD = new(innerMidL, innerSolidColor);
 
-                        collector.AppendQuad(rightMidSolidD, centerMidSolidD, v0SolidD, leftMidSolidD);
+                        VertexData innerEndRD = new(innerEndR, innerFalloffColor);
+                        VertexData innerEndCD = new(innerEndC, innerFalloffColor);
+                        VertexData innerEndLD = new(innerEndL, innerFalloffColor);
+
+                        collector.AppendQuad(innerEndRD, innerEndCD, innerMidRD, innerMidCD);
+                        collector.AppendQuad(innerMidRD, innerMidCD, innerStartRD, innerStartCD);
+                        collector.AppendQuad(outerEndRD, outerEndCD, outerStartRD, outerStartCD);
+
+                        collector.AppendQuad(innerEndCD, innerEndLD, innerMidCD, innerMidLD);
+                        collector.AppendQuad(innerMidCD, innerMidLD, innerStartCD, innerStartLD);
+                        collector.AppendQuad(outerEndCD, outerEndLD, outerStartCD, outerStartLD);
                     }
                 }
 
